@@ -19,5 +19,13 @@ public class App {
                 LOGGER.error("Failed to deploy WordAnalyzerVerticle.", deployment.cause());
             }
         });
+
+
+
+
+
+
+
+
     }
 }
