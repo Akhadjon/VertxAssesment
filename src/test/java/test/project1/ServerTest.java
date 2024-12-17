@@ -12,7 +12,6 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.ExtendWith;
 import test.project1.controller.WordAnalyzerVerticle;
 
-import java.time.LocalDateTime;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -75,113 +74,6 @@ public class ServerTest {
             sb.append(randomChar);
         }
         return sb.toString();
-    }
-}
-
-class OurBankDaoTest {
-
-    private static final String VALID_BIC = "TESTBIC1";
-    private static final String STANDARDIZED_BIC = "STANDARDIZEDBIC";
-    private static final String VALID_AGREEMENT = "AGREEMENT1";
-    private static final Integer VALID_CAP_LIMIT = 1000000;
-    private static final String VALID_CURRENCY = "USD";
-    private static final Long VALID_ID = 1L;
-    private static final String TEST_ENDPOINT = "http://test-endpoint";
-    private static final LocalDateTime NOW = LocalDateTime.now();
-
-    @Mock
-    private DalServiceConfigProperties dalServiceConfigProperties;
-
-    @Mock
-    private RccsDalServiceClient rccsDalServiceClient;
-
-    @Mock
-    private EnvironmentService environmentService;
-
-    @Mock
-    private DalServiceConfigProperties.EndPoint endPoint;
-
-    @Mock
-    private DalServiceConfigProperties.EndPoint.OurBank ourBank;
-
-    @InjectMocks
-    private OurBankDao ourBankDao;
-
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-
-        // Setup the mock chain
-        when(dalServiceConfigProperties.endPoint()).thenReturn(endPoint);
-        when(endPoint.ourBank()).thenReturn(ourBank);
-        when(ourBank.getBySenderBic())
-                .thenReturn(TEST_ENDPOINT + "/ourBank");
-        when(environmentService.getStandardSearchBic(VALID_BIC))
-                .thenReturn(STANDARDIZED_BIC);
-    }
-
-    @Test
-    void getBankAgreement_WhenAgreementsExist_ReturnsArray() throws RccsApiException {
-        // Given
-        OurBank mockOurBank = OurBank.builder()
-                .ourBankId(VALID_ID)
-                .bicCode(VALID_BIC)
-                .agreement(VALID_AGREEMENT)
-                .capLimit(VALID_CAP_LIMIT)
-                .currency(VALID_CURRENCY)
-                .build();
-
-        when(rccsDalServiceClient.getResource(any(String.class), eq(OurBank[].class)))
-                .thenReturn(Mono.just(new OurBank[]{mockOurBank}));
-
-        // When
-        OurBank[] result = ourBankDao.getBankAgreement(VALID_BIC);
-
-        // Then
-        assertNotNull(result);
-        assertEquals(1, result.length);
-        assertEquals(VALID_BIC, result[0].getBicCode());
-        assertEquals(VALID_AGREEMENT, result[0].getAgreement());
-        assertEquals(VALID_CAP_LIMIT, result[0].getCapLimit());
-        assertEquals(VALID_CURRENCY, result[0].getCurrency());
-    }
-
-    @Test
-    void getBankAgreement_WhenNoAgreements_ReturnsNull() throws RccsApiException {
-        // Given
-        when(rccsDalServiceClient.getResource(any(String.class), eq(OurBank[].class)))
-                .thenReturn(Mono.empty());
-
-        // When
-        OurBank[] result = ourBankDao.getBankAgreement(VALID_BIC);
-
-        // Then
-        assertNull(result);
-    }
-
-    @Test
-    void getBankAgreement_WhenError_ReturnsNull() throws RccsApiException {
-        // Given
-        when(rccsDalServiceClient.getResource(any(String.class), eq(OurBank[].class)))
-                .thenReturn(Mono.error(new RuntimeException("Test error")));
-
-        // When
-        OurBank[] result = ourBankDao.getBankAgreement(VALID_BIC);
-
-        // Then
-        assertNull(result);
-    }
-
-    @Test
-    void getBankAgreement_WhenGeneralException_ThrowsRccsApiException() {
-        // Given
-        when(rccsDalServiceClient.getResource(any(String.class), eq(OurBank[].class)))
-                .thenThrow(new RuntimeException("Unexpected error"));
-
-        // When & Then
-        assertThrows(RccsApiException.class, () ->
-                ourBankDao.getBankAgreement(VALID_BIC)
-        );
     }
 }
 
