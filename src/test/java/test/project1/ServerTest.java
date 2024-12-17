@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.ExtendWith;
 import test.project1.controller.WordAnalyzerVerticle;
 
+import java.time.LocalDateTime;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -77,28 +78,30 @@ public class ServerTest {
     }
 }
 
-class FxBlockAccountDaoTest {
 
-    private static final String VALID_ACCOUNT_NUMBER = "12345678";
-    private static final String VALID_ACCOUNT_NAME = "Test Account";
-    private static final String VALID_ACCOUNT_STATUS = "ACTIVE";
-    private static final Long VALID_ID = 1L;
+class OriginatorDebitAccountMappingDaoTest {
+
+    private static final String VALID_ORIGINATOR_ACCOUNT = "ORIG123";
+    private static final String VALID_DEBIT_ACCOUNT = "DEBIT456";
+    private static final String VALID_DEBTOR_NAME = "Test Debtor";
+    private static final Long VALID_DEBIT_ID = 1L;
     private static final String TEST_ENDPOINT = "http://test-endpoint";
+    private static final LocalDateTime NOW = LocalDateTime.now();
 
     @Mock
     private DalServiceConfigProperties dalServiceConfigProperties;
 
     @Mock
-    private RocsDalServiceClient rocsDalServiceClient;
+    private RccsDalServiceClient rccsDalServiceClient;
 
     @Mock
     private DalServiceConfigProperties.EndPoint endPoint;
 
     @Mock
-    private DalServiceConfigProperties.EndPoint.FxBlockAccount fxBlockAccount;
+    private DalServiceConfigProperties.EndPoint.OriginatorDebitAccount originatorDebitAccount;
 
     @InjectMocks
-    private FxBlockAccountDao fxBlockAccountDao;
+    private OriginatorDebitAccountMappingDao originatorDebitAccountMappingDao;
 
     @BeforeEach
     void setUp() {
@@ -106,77 +109,71 @@ class FxBlockAccountDaoTest {
 
         // Setup the mock chain
         when(dalServiceConfigProperties.endPoint()).thenReturn(endPoint);
-        when(endPoint.fxBlockAccount()).thenReturn(fxBlockAccount);
-        when(fxBlockAccount.getByAccountNumber()).thenReturn(TEST_ENDPOINT + "/fxBlockAccount");
+        when(endPoint.originatorDebitAccount()).thenReturn(originatorDebitAccount);
+        when(originatorDebitAccount.getByOriginatorAccountNumber())
+                .thenReturn(TEST_ENDPOINT + "/originatorDebitAccount");
     }
 
     @Test
-    void getFxBlockAccountByAccountNumber_WithValidNumber_ReturnsFxBlockAccount() throws RocsApiException {
+    void getDebitAccount_WithValidOriginatorAccount_ReturnsDebitAccount() throws RccsApiException {
         // Given
-        FxBlockAccount mockAccount = FxBlockAccount.builder()
-                .id(VALID_ID)
-                .accountNumber(VALID_ACCOUNT_NUMBER)
-                .accountName(VALID_ACCOUNT_NAME)
-                .accountStatus(VALID_ACCOUNT_STATUS)
+        OriginatorDebitAccount mockMapping = OriginatorDebitAccount.builder()
+                .debitId(VALID_DEBIT_ID)
+                .originatorAccount(VALID_ORIGINATOR_ACCOUNT)
+                .debitAccount(VALID_DEBIT_ACCOUNT)
+                .debtorName(VALID_DEBTOR_NAME)
+                .createdDateTime(NOW)
+                .updatedDatetime(NOW)
                 .build();
 
-        when(rocsDalServiceClient.getResource(any(String.class), eq(FxBlockAccount.class)))
-                .thenReturn(Mono.defer(() -> Mono.just(mockAccount)));
+        when(rccsDalServiceClient.getResource(any(String.class), eq(OriginatorDebitAccount.class)))
+                .thenReturn(Mono.just(mockMapping));
 
-        // When
-        Optional<FxBlockAccount> result = fxBlockAccountDao.getFxBlockAccountByAccountNumber(VALID_ACCOUNT_NUMBER);
-
-        // Then
-        assertTrue(result.isPresent());
-        assertEquals(VALID_ACCOUNT_NUMBER, result.get().getAccountNumber());
-        assertEquals(VALID_ACCOUNT_NAME, result.get().getAccountName());
-        assertEquals(VALID_ACCOUNT_STATUS, result.get().getAccountStatus());
+        // When & Then
+        StepVerifier.create(originatorDebitAccountMappingDao.getDebitAccount(VALID_ORIGINATOR_ACCOUNT))
+                .expectNext(VALID_DEBIT_ACCOUNT)
+                .verifyComplete();
     }
 
     @Test
-    void getFxBlockAccountByAccountNumber_WithNullAccountNumber_ThrowsException() {
-        assertThrows(RocsApiException.class, () ->
-                fxBlockAccountDao.getFxBlockAccountByAccountNumber(null)
+    void getDebitAccount_WithBlankOriginatorAccount_ThrowsException() {
+        assertThrows(RccsApiException.class, () ->
+                originatorDebitAccountMappingDao.getDebitAccount("")
         );
     }
 
     @Test
-    void getFxBlockAccountByAccountNumber_WhenResourceNotFound_ReturnsEmptyOptional() throws RocsApiException {
+    void getDebitAccount_WhenResourceNotFound_ReturnsEmptyMono() throws RccsApiException {
         // Given
-        when(rocsDalServiceClient.getResource(any(String.class), eq(FxBlockAccount.class)))
+        when(rccsDalServiceClient.getResource(any(String.class), eq(OriginatorDebitAccount.class)))
                 .thenReturn(Mono.error(new DalResourceNotFoundException("Resource not found")));
 
-        // When
-        Optional<FxBlockAccount> result = fxBlockAccountDao.getFxBlockAccountByAccountNumber(VALID_ACCOUNT_NUMBER);
-
-        // Then
-        assertTrue(result.isEmpty());
+        // When & Then
+        StepVerifier.create(originatorDebitAccountMappingDao.getDebitAccount(VALID_ORIGINATOR_ACCOUNT))
+                .verifyComplete();
     }
 
     @Test
-    void getFxBlockAccountByAccountNumber_WhenGeneralException_ThrowsRocsApiException() {
+    void getDebitAccount_WhenGeneralException_ThrowsRccsApiException() {
         // Given
-        when(rocsDalServiceClient.getResource(any(String.class), eq(FxBlockAccount.class)))
+        when(rccsDalServiceClient.getResource(any(String.class), eq(OriginatorDebitAccount.class)))
                 .thenReturn(Mono.error(new RuntimeException("Unexpected error")));
 
-        // Then
-        RocsApiException exception = assertThrows(RocsApiException.class, () ->
-                fxBlockAccountDao.getFxBlockAccountByAccountNumber(VALID_ACCOUNT_NUMBER)
-        );
-        assertEquals(RocsErrorCode.DAL_SERVICE_ERROR, exception.getErrorCode());
+        // When & Then
+        StepVerifier.create(originatorDebitAccountMappingDao.getDebitAccount(VALID_ORIGINATOR_ACCOUNT))
+                .expectError(RccsApiException.class)
+                .verify();
     }
 
     @Test
-    void getFxBlockAccountByAccountNumber_WhenEmptyResponse_ReturnsEmptyOptional() throws RocsApiException {
+    void getDebitAccount_WhenEmptyResponse_ReturnsEmptyMono() throws RccsApiException {
         // Given
-        when(rocsDalServiceClient.getResource(any(String.class), eq(FxBlockAccount.class)))
+        when(rccsDalServiceClient.getResource(any(String.class), eq(OriginatorDebitAccount.class)))
                 .thenReturn(Mono.empty());
 
-        // When
-        Optional<FxBlockAccount> result = fxBlockAccountDao.getFxBlockAccountByAccountNumber(VALID_ACCOUNT_NUMBER);
-
-        // Then
-        assertTrue(result.isEmpty());
+        // When & Then
+        StepVerifier.create(originatorDebitAccountMappingDao.getDebitAccount(VALID_ORIGINATOR_ACCOUNT))
+                .verifyComplete();
     }
 }
 
