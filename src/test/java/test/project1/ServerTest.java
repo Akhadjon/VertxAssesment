@@ -78,11 +78,13 @@ public class ServerTest {
     }
 }
 
-class EmeaWaiverAccountDaoTest {
+class OurBankDaoTest {
 
     private static final String VALID_BIC = "TESTBIC1";
     private static final String STANDARDIZED_BIC = "STANDARDIZEDBIC";
-    private static final String VALID_STATUS = "ACTIVE";
+    private static final String VALID_AGREEMENT = "AGREEMENT1";
+    private static final Integer VALID_CAP_LIMIT = 1000000;
+    private static final String VALID_CURRENCY = "USD";
     private static final Long VALID_ID = 1L;
     private static final String TEST_ENDPOINT = "http://test-endpoint";
     private static final LocalDateTime NOW = LocalDateTime.now();
@@ -100,13 +102,10 @@ class EmeaWaiverAccountDaoTest {
     private DalServiceConfigProperties.EndPoint endPoint;
 
     @Mock
-    private DalServiceConfigProperties.EndPoint.Reference reference;
-
-    @Mock
-    private DalServiceConfigProperties.EndPoint.Reference.WaiverBics waiverBics;
+    private DalServiceConfigProperties.EndPoint.OurBank ourBank;
 
     @InjectMocks
-    private EmeaWaiverAccountDao emeaWaiverAccountDao;
+    private OurBankDao ourBankDao;
 
     @BeforeEach
     void setUp() {
@@ -114,92 +113,75 @@ class EmeaWaiverAccountDaoTest {
 
         // Setup the mock chain
         when(dalServiceConfigProperties.endPoint()).thenReturn(endPoint);
-        when(endPoint.reference()).thenReturn(reference);
-        when(reference.waiverBics()).thenReturn(waiverBics);
-        when(waiverBics.getWaiverBics())
-                .thenReturn(TEST_ENDPOINT + "/waiverBics");
+        when(endPoint.ourBank()).thenReturn(ourBank);
+        when(ourBank.getBySenderBic())
+                .thenReturn(TEST_ENDPOINT + "/ourBank");
         when(environmentService.getStandardSearchBic(VALID_BIC))
                 .thenReturn(STANDARDIZED_BIC);
     }
 
     @Test
-    void isWaiverAvailable_WhenBicMatches_ReturnsTrue() throws RccsApiException {
+    void getBankAgreement_WhenAgreementsExist_ReturnsArray() throws RccsApiException {
         // Given
-        WaiverBics mockWaiverBics = WaiverBics.builder()
-                .waiverId(VALID_ID)
+        OurBank mockOurBank = OurBank.builder()
+                .ourBankId(VALID_ID)
                 .bicCode(VALID_BIC)
-                .status(VALID_STATUS)
-                .createdDateTime(NOW)
-                .updatedDatetime(NOW)
+                .agreement(VALID_AGREEMENT)
+                .capLimit(VALID_CAP_LIMIT)
+                .currency(VALID_CURRENCY)
                 .build();
 
-        when(rccsDalServiceClient.getResource(any(String.class), eq(WaiverBics.class)))
-                .thenReturn(Mono.just(mockWaiverBics));
+        when(rccsDalServiceClient.getResource(any(String.class), eq(OurBank[].class)))
+                .thenReturn(Mono.just(new OurBank[]{mockOurBank}));
 
         // When
-        boolean result = emeaWaiverAccountDao.isWaiverAvailable(VALID_BIC);
+        OurBank[] result = ourBankDao.getBankAgreement(VALID_BIC);
 
         // Then
-        assertTrue(result);
+        assertNotNull(result);
+        assertEquals(1, result.length);
+        assertEquals(VALID_BIC, result[0].getBicCode());
+        assertEquals(VALID_AGREEMENT, result[0].getAgreement());
+        assertEquals(VALID_CAP_LIMIT, result[0].getCapLimit());
+        assertEquals(VALID_CURRENCY, result[0].getCurrency());
     }
 
     @Test
-    void isWaiverAvailable_WhenBicDoesNotMatch_ReturnsFalse() throws RccsApiException {
+    void getBankAgreement_WhenNoAgreements_ReturnsNull() throws RccsApiException {
         // Given
-        WaiverBics mockWaiverBics = WaiverBics.builder()
-                .waiverId(VALID_ID)
-                .bicCode("DIFFERENT_BIC")
-                .status(VALID_STATUS)
-                .createdDateTime(NOW)
-                .updatedDatetime(NOW)
-                .build();
-
-        when(rccsDalServiceClient.getResource(any(String.class), eq(WaiverBics.class)))
-                .thenReturn(Mono.just(mockWaiverBics));
-
-        // When
-        boolean result = emeaWaiverAccountDao.isWaiverAvailable(VALID_BIC);
-
-        // Then
-        assertFalse(result);
-    }
-
-    @Test
-    void isWaiverAvailable_WhenResourceNotFound_ReturnsFalse() throws RccsApiException {
-        // Given
-        when(rccsDalServiceClient.getResource(any(String.class), eq(WaiverBics.class)))
-                .thenReturn(Mono.error(new DalResourceNotFoundException("Resource not found")));
-
-        // When
-        boolean result = emeaWaiverAccountDao.isWaiverAvailable(VALID_BIC);
-
-        // Then
-        assertFalse(result);
-    }
-
-    @Test
-    void isWaiverAvailable_WhenGeneralException_ThrowsRccsApiException() {
-        // Given
-        when(rccsDalServiceClient.getResource(any(String.class), eq(WaiverBics.class)))
-                .thenReturn(Mono.error(new RuntimeException("Unexpected error")));
-
-        // When & Then
-        assertThrows(RccsApiException.class, () ->
-                emeaWaiverAccountDao.isWaiverAvailable(VALID_BIC)
-        );
-    }
-
-    @Test
-    void isWaiverAvailable_WhenEmptyResponse_ReturnsFalse() throws RccsApiException {
-        // Given
-        when(rccsDalServiceClient.getResource(any(String.class), eq(WaiverBics.class)))
+        when(rccsDalServiceClient.getResource(any(String.class), eq(OurBank[].class)))
                 .thenReturn(Mono.empty());
 
         // When
-        boolean result = emeaWaiverAccountDao.isWaiverAvailable(VALID_BIC);
+        OurBank[] result = ourBankDao.getBankAgreement(VALID_BIC);
 
         // Then
-        assertFalse(result);
+        assertNull(result);
+    }
+
+    @Test
+    void getBankAgreement_WhenError_ReturnsNull() throws RccsApiException {
+        // Given
+        when(rccsDalServiceClient.getResource(any(String.class), eq(OurBank[].class)))
+                .thenReturn(Mono.error(new RuntimeException("Test error")));
+
+        // When
+        OurBank[] result = ourBankDao.getBankAgreement(VALID_BIC);
+
+        // Then
+        assertNull(result);
+    }
+
+    @Test
+    void getBankAgreement_WhenGeneralException_ThrowsRccsApiException() {
+        // Given
+        when(rccsDalServiceClient.getResource(any(String.class), eq(OurBank[].class)))
+                .thenThrow(new RuntimeException("Unexpected error"));
+
+        // When & Then
+        assertThrows(RccsApiException.class, () ->
+                ourBankDao.getBankAgreement(VALID_BIC)
+        );
     }
 }
 
