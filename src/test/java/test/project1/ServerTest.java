@@ -12,7 +12,6 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.ExtendWith;
 import test.project1.controller.WordAnalyzerVerticle;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -79,17 +78,14 @@ public class ServerTest {
     }
 }
 
-class EmeaChCreditDaoTest {
+class EmeaClientCurrencyAccountDaoTest {
 
-    private static final String VALID_BIC = "TESTBIC1";
-    private static final String VALID_BRANCH = "BRANCH1";
-    private static final String VALID_CONDITION = "CONDITION1";
-    private static final BigDecimal VALID_AMOUNT = new BigDecimal("1000.00");
+    private static final String VALID_CUSTOMER_NUMBER = "CUST123";
     private static final String VALID_CURRENCY = "USD";
+    private static final String VALID_CURRENCY_ACCOUNT_NUMBER = "ACC123456";
     private static final Long VALID_ID = 1L;
     private static final String TEST_ENDPOINT = "http://test-endpoint";
     private static final LocalDateTime NOW = LocalDateTime.now();
-    private static final String STANDARDIZED_BIC = "STANDARDIZEDBIC";
 
     @Mock
     private DalServiceConfigProperties dalServiceConfigProperties;
@@ -98,19 +94,16 @@ class EmeaChCreditDaoTest {
     private RccsDalServiceClient rccsDalServiceClient;
 
     @Mock
-    private EnvironmentService environmentService;
-
-    @Mock
     private DalServiceConfigProperties.EndPoint endPoint;
 
     @Mock
     private DalServiceConfigProperties.EndPoint.Reference reference;
 
     @Mock
-    private DalServiceConfigProperties.EndPoint.Reference.EmeaChCredit emeaChCredit;
+    private DalServiceConfigProperties.EndPoint.Reference.EmeaClientCurrencyAccount emeaClientCurrencyAccount;
 
     @InjectMocks
-    private EmeaChCreditDao emeaChCreditDao;
+    private EmeaClientCurrencyAccountDao emeaClientCurrencyAccountDao;
 
     @BeforeEach
     void setUp() {
@@ -119,75 +112,73 @@ class EmeaChCreditDaoTest {
         // Setup the mock chain
         when(dalServiceConfigProperties.endPoint()).thenReturn(endPoint);
         when(endPoint.reference()).thenReturn(reference);
-        when(reference.emeaChCredit()).thenReturn(emeaChCredit);
-        when(emeaChCredit.findByBic())
-                .thenReturn(TEST_ENDPOINT + "/emeaChCredit");
-        when(environmentService.getStandardPbrmSearchBic(VALID_BIC))
-                .thenReturn(STANDARDIZED_BIC);
+        when(reference.emeaClientCurrencyAccount()).thenReturn(emeaClientCurrencyAccount);
+        when(emeaClientCurrencyAccount.findByCustomerNumberAndCurrency())
+                .thenReturn(TEST_ENDPOINT + "/emeaClientCurrencyAccount");
     }
 
     @Test
-    void findByBicAndBranch_WithValidInput_ReturnsEmeaChCredit() throws RccsApiException {
+    void findCurrencyAccountNumberByCustomerNumberAndCurrency_WithValidInput_ReturnsCurrencyAccountNumber()
+            throws RccsApiException {
         // Given
-        EmeaChCredit mockEmeaChCredit = EmeaChCredit.builder()
-                .emeaChCreditId(VALID_ID)
-                .bic(VALID_BIC)
-                .branch(VALID_BRANCH)
-                .condition(VALID_CONDITION)
-                .amount(VALID_AMOUNT)
+        EmeaClientCurrencyAccount mockAccount = EmeaClientCurrencyAccount.builder()
+                .emeaClientCurrencyAccountId(VALID_ID)
+                .customerNumber(VALID_CUSTOMER_NUMBER)
                 .currency(VALID_CURRENCY)
+                .currencyAccountNumber(VALID_CURRENCY_ACCOUNT_NUMBER)
                 .createdDateTime(NOW)
                 .updatedDatetime(NOW)
                 .build();
 
-        when(rccsDalServiceClient.getResource(any(String.class), eq(EmeaChCredit.class)))
-                .thenReturn(Mono.just(mockEmeaChCredit));
+        when(rccsDalServiceClient.getResource(any(String.class), eq(EmeaClientCurrencyAccount.class)))
+                .thenReturn(Mono.just(mockAccount));
 
         // When
-        EmeaChCredit result = emeaChCreditDao.findByBicAndBranch(VALID_BIC, VALID_BRANCH);
+        String result = emeaClientCurrencyAccountDao
+                .findCurrencyAccountNumberByCustomerNumberAndCurrency(VALID_CUSTOMER_NUMBER, VALID_CURRENCY);
 
         // Then
-        assertNotNull(result);
-        assertEquals(VALID_BIC, result.getBic());
-        assertEquals(VALID_BRANCH, result.getBranch());
-        assertEquals(VALID_CONDITION, result.getCondition());
-        assertEquals(VALID_AMOUNT, result.getAmount());
-        assertEquals(VALID_CURRENCY, result.getCurrency());
+        assertEquals(VALID_CURRENCY_ACCOUNT_NUMBER, result);
     }
 
     @Test
-    void findByBicAndBranch_WhenResourceNotFound_ReturnsNull() throws RccsApiException {
+    void findCurrencyAccountNumberByCustomerNumberAndCurrency_WhenResourceNotFound_ReturnsNull()
+            throws RccsApiException {
         // Given
-        when(rccsDalServiceClient.getResource(any(String.class), eq(EmeaChCredit.class)))
+        when(rccsDalServiceClient.getResource(any(String.class), eq(EmeaClientCurrencyAccount.class)))
                 .thenReturn(Mono.error(new DalResourceNotFoundException("Resource not found")));
 
         // When
-        EmeaChCredit result = emeaChCreditDao.findByBicAndBranch(VALID_BIC, VALID_BRANCH);
+        String result = emeaClientCurrencyAccountDao
+                .findCurrencyAccountNumberByCustomerNumberAndCurrency(VALID_CUSTOMER_NUMBER, VALID_CURRENCY);
 
         // Then
         assertNull(result);
     }
 
     @Test
-    void findByBicAndBranch_WhenGeneralException_ThrowsRccsApiException() {
+    void findCurrencyAccountNumberByCustomerNumberAndCurrency_WhenGeneralException_ThrowsRccsApiException() {
         // Given
-        when(rccsDalServiceClient.getResource(any(String.class), eq(EmeaChCredit.class)))
+        when(rccsDalServiceClient.getResource(any(String.class), eq(EmeaClientCurrencyAccount.class)))
                 .thenReturn(Mono.error(new RuntimeException("Unexpected error")));
 
         // When & Then
         assertThrows(RccsApiException.class, () ->
-                emeaChCreditDao.findByBicAndBranch(VALID_BIC, VALID_BRANCH)
+                emeaClientCurrencyAccountDao
+                        .findCurrencyAccountNumberByCustomerNumberAndCurrency(VALID_CUSTOMER_NUMBER, VALID_CURRENCY)
         );
     }
 
     @Test
-    void findByBicAndBranch_WhenEmptyResponse_ReturnsNull() throws RccsApiException {
+    void findCurrencyAccountNumberByCustomerNumberAndCurrency_WhenEmptyResponse_ReturnsNull()
+            throws RccsApiException {
         // Given
-        when(rccsDalServiceClient.getResource(any(String.class), eq(EmeaChCredit.class)))
+        when(rccsDalServiceClient.getResource(any(String.class), eq(EmeaClientCurrencyAccount.class)))
                 .thenReturn(Mono.empty());
 
         // When
-        EmeaChCredit result = emeaChCreditDao.findByBicAndBranch(VALID_BIC, VALID_BRANCH);
+        String result = emeaClientCurrencyAccountDao
+                .findCurrencyAccountNumberByCustomerNumberAndCurrency(VALID_CUSTOMER_NUMBER, VALID_CURRENCY);
 
         // Then
         assertNull(result);
