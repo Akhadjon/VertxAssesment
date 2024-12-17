@@ -12,7 +12,6 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.ExtendWith;
 import test.project1.controller.WordAnalyzerVerticle;
 
-import java.time.LocalDateTime;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -78,14 +77,12 @@ public class ServerTest {
     }
 }
 
-class EmeaClientCurrencyAccountDaoTest {
 
-    private static final String VALID_CUSTOMER_NUMBER = "CUST123";
-    private static final String VALID_CURRENCY = "USD";
-    private static final String VALID_CURRENCY_ACCOUNT_NUMBER = "ACC123456";
-    private static final Long VALID_ID = 1L;
+class EmeaNstpBankAgreementDaoTest {
+
+    private static final String VALID_BIC = "TESTBIC1";
+    private static final String STANDARDIZED_BIC = "STANDARDIZEDBIC";
     private static final String TEST_ENDPOINT = "http://test-endpoint";
-    private static final LocalDateTime NOW = LocalDateTime.now();
 
     @Mock
     private DalServiceConfigProperties dalServiceConfigProperties;
@@ -94,16 +91,19 @@ class EmeaClientCurrencyAccountDaoTest {
     private RccsDalServiceClient rccsDalServiceClient;
 
     @Mock
+    private EnvironmentService environmentService;
+
+    @Mock
     private DalServiceConfigProperties.EndPoint endPoint;
 
     @Mock
     private DalServiceConfigProperties.EndPoint.Reference reference;
 
     @Mock
-    private DalServiceConfigProperties.EndPoint.Reference.EmeaClientCurrencyAccount emeaClientCurrencyAccount;
+    private DalServiceConfigProperties.EndPoint.Reference.EmeaNstpBankAgreement emeaNstpBankAgreement;
 
     @InjectMocks
-    private EmeaClientCurrencyAccountDao emeaClientCurrencyAccountDao;
+    private EmeaNstpBankAgreementDao emeaNstpBankAgreementDao;
 
     @BeforeEach
     void setUp() {
@@ -112,76 +112,75 @@ class EmeaClientCurrencyAccountDaoTest {
         // Setup the mock chain
         when(dalServiceConfigProperties.endPoint()).thenReturn(endPoint);
         when(endPoint.reference()).thenReturn(reference);
-        when(reference.emeaClientCurrencyAccount()).thenReturn(emeaClientCurrencyAccount);
-        when(emeaClientCurrencyAccount.findByCustomerNumberAndCurrency())
-                .thenReturn(TEST_ENDPOINT + "/emeaClientCurrencyAccount");
+        when(reference.emeaNstpBankAgreement()).thenReturn(emeaNstpBankAgreement);
+        when(emeaNstpBankAgreement.existsByBic())
+                .thenReturn(TEST_ENDPOINT + "/emeaNstpBankAgreement");
+        when(environmentService.getStandardPbrmSearchBic(VALID_BIC))
+                .thenReturn(STANDARDIZED_BIC);
     }
 
     @Test
-    void findCurrencyAccountNumberByCustomerNumberAndCurrency_WithValidInput_ReturnsCurrencyAccountNumber()
-            throws RccsApiException {
+    void isAgreementAvailableForBic_WhenAgreementExists_ReturnsTrue() throws RccsApiException {
         // Given
-        EmeaClientCurrencyAccount mockAccount = EmeaClientCurrencyAccount.builder()
-                .emeaClientCurrencyAccountId(VALID_ID)
-                .customerNumber(VALID_CUSTOMER_NUMBER)
-                .currency(VALID_CURRENCY)
-                .currencyAccountNumber(VALID_CURRENCY_ACCOUNT_NUMBER)
-                .createdDateTime(NOW)
-                .updatedDatetime(NOW)
-                .build();
-
-        when(rccsDalServiceClient.getResource(any(String.class), eq(EmeaClientCurrencyAccount.class)))
-                .thenReturn(Mono.just(mockAccount));
+        when(rccsDalServiceClient.getResource(any(String.class), eq(Boolean.class)))
+                .thenReturn(Mono.just(true));
 
         // When
-        String result = emeaClientCurrencyAccountDao
-                .findCurrencyAccountNumberByCustomerNumberAndCurrency(VALID_CUSTOMER_NUMBER, VALID_CURRENCY);
+        boolean result = emeaNstpBankAgreementDao.isAgreementAvailableForBic(VALID_BIC);
 
         // Then
-        assertEquals(VALID_CURRENCY_ACCOUNT_NUMBER, result);
+        assertTrue(result);
     }
 
     @Test
-    void findCurrencyAccountNumberByCustomerNumberAndCurrency_WhenResourceNotFound_ReturnsNull()
-            throws RccsApiException {
+    void isAgreementAvailableForBic_WhenAgreementDoesNotExist_ReturnsFalse() throws RccsApiException {
         // Given
-        when(rccsDalServiceClient.getResource(any(String.class), eq(EmeaClientCurrencyAccount.class)))
+        when(rccsDalServiceClient.getResource(any(String.class), eq(Boolean.class)))
+                .thenReturn(Mono.just(false));
+
+        // When
+        boolean result = emeaNstpBankAgreementDao.isAgreementAvailableForBic(VALID_BIC);
+
+        // Then
+        assertFalse(result);
+    }
+
+    @Test
+    void isAgreementAvailableForBic_WhenResourceNotFound_ReturnsFalse() throws RccsApiException {
+        // Given
+        when(rccsDalServiceClient.getResource(any(String.class), eq(Boolean.class)))
                 .thenReturn(Mono.error(new DalResourceNotFoundException("Resource not found")));
 
         // When
-        String result = emeaClientCurrencyAccountDao
-                .findCurrencyAccountNumberByCustomerNumberAndCurrency(VALID_CUSTOMER_NUMBER, VALID_CURRENCY);
+        boolean result = emeaNstpBankAgreementDao.isAgreementAvailableForBic(VALID_BIC);
 
         // Then
-        assertNull(result);
+        assertFalse(result);
     }
 
     @Test
-    void findCurrencyAccountNumberByCustomerNumberAndCurrency_WhenGeneralException_ThrowsRccsApiException() {
+    void isAgreementAvailableForBic_WhenGeneralException_ThrowsRccsApiException() {
         // Given
-        when(rccsDalServiceClient.getResource(any(String.class), eq(EmeaClientCurrencyAccount.class)))
+        when(rccsDalServiceClient.getResource(any(String.class), eq(Boolean.class)))
                 .thenReturn(Mono.error(new RuntimeException("Unexpected error")));
 
         // When & Then
         assertThrows(RccsApiException.class, () ->
-                emeaClientCurrencyAccountDao
-                        .findCurrencyAccountNumberByCustomerNumberAndCurrency(VALID_CUSTOMER_NUMBER, VALID_CURRENCY)
+                emeaNstpBankAgreementDao.isAgreementAvailableForBic(VALID_BIC)
         );
     }
 
     @Test
-    void findCurrencyAccountNumberByCustomerNumberAndCurrency_WhenEmptyResponse_ReturnsNull()
-            throws RccsApiException {
+    void isAgreementAvailableForBic_WhenEmptyResponse_ReturnsFalse() throws RccsApiException {
         // Given
-        when(rccsDalServiceClient.getResource(any(String.class), eq(EmeaClientCurrencyAccount.class)))
+        when(rccsDalServiceClient.getResource(any(String.class), eq(Boolean.class)))
                 .thenReturn(Mono.empty());
 
         // When
-        String result = emeaClientCurrencyAccountDao
-                .findCurrencyAccountNumberByCustomerNumberAndCurrency(VALID_CUSTOMER_NUMBER, VALID_CURRENCY);
+        boolean result = emeaNstpBankAgreementDao.isAgreementAvailableForBic(VALID_BIC);
 
         // Then
-        assertNull(result);
+        assertFalse(result);
     }
 }
 
