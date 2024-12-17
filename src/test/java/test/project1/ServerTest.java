@@ -12,8 +12,6 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.ExtendWith;
 import test.project1.controller.WordAnalyzerVerticle;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -79,100 +77,118 @@ public class ServerTest {
     }
 }
 
+    lass EmeaChCreditDaoTest {
 
-class CapLimitEmeaDaoTest {
+private static final String VALID_BIC = "TESTBIC1";
+private static final String VALID_BRANCH = "BRANCH1";
+private static final String VALID_CREDIT_ACCOUNT = "CREDIT123";
+private static final String VALID_CREDIT_ACCOUNT_NAME = "Test Credit Account";
+private static final String VALID_STATUS = "ACTIVE";
+private static final Long VALID_ID = 1L;
+private static final String TEST_ENDPOINT = "http://test-endpoint";
+private static final LocalDateTime NOW = LocalDateTime.now();
+private static final String STANDARDIZED_BIC = "STANDARDIZEDBIC";
 
-    private static final String VALID_CURRENCY = "USD";
-    private static final BigDecimal VALID_CAP_LIMIT = new BigDecimal("1000000.00");
-    private static final Long VALID_ID = 1L;
-    private static final String TEST_ENDPOINT = "http://test-endpoint";
-    private static final LocalDateTime NOW = LocalDateTime.now();
+@Mock
+private DalServiceConfigProperties dalServiceConfigProperties;
 
-    @Mock
-    private DalServiceConfigProperties dalServiceConfigProperties;
+@Mock
+private RccsDalServiceClient rccsDalServiceClient;
 
-    @Mock
-    private RccsDalServiceClient rccsDalServiceClient;
+@Mock
+private EnvironmentService environmentService;
 
-    @Mock
-    private DalServiceConfigProperties.EndPoint endPoint;
+@Mock
+private DalServiceConfigProperties.EndPoint endPoint;
 
-    @Mock
-    private DalServiceConfigProperties.EndPoint.CapLimitEmea capLimitEmea;
+@Mock
+private DalServiceConfigProperties.EndPoint.Reference reference;
 
-    @InjectMocks
-    private CapLimitEmeaDao capLimitEmeaDao;
+@Mock
+private DalServiceConfigProperties.EndPoint.Reference.EmeaChCredit emeaChCredit;
 
-    @BeforeEach
+@InjectMocks
+private EmeaChCreditDao emeaChCreditDao;
+
+@BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this);
+            MockitoAnnotations.openMocks(this);
 
-        // Setup the mock chain
-        when(dalServiceConfigProperties.endPoint()).thenReturn(endPoint);
-        when(endPoint.capLimitEmea()).thenReturn(capLimitEmea);
-        when(capLimitEmea.getByCurrency())
-                .thenReturn(TEST_ENDPOINT + "/capLimitEmea");
-    }
+            // Setup the mock chain
+            when(dalServiceConfigProperties.endPoint()).thenReturn(endPoint);
+            when(endPoint.reference()).thenReturn(reference);
+            when(reference.emeaChCredit()).thenReturn(emeaChCredit);
+            when(emeaChCredit.findByBic())
+            .thenReturn(TEST_ENDPOINT + "/emeaChCredit");
+            when(environmentService.getStandardPbrmSearchBic(VALID_BIC))
+            .thenReturn(STANDARDIZED_BIC);
+            }
 
-    @Test
-    void getCapLimitAmount_WithValidCurrency_ReturnsCapLimit() throws RccsApiException {
-        // Given
-        CapLimitEmea mockCapLimit = CapLimitEmea.builder()
-                .id(VALID_ID)
-                .currency(VALID_CURRENCY)
-                .capLimit(VALID_CAP_LIMIT)
-                .createdDateTime(NOW)
-                .updatedDatetime(NOW)
-                .build();
+@Test
+    void findByBicAndBranch_WithValidInput_ReturnsEmeaChCredit() throws RccsApiException {
+            // Given
+            EmeaChCredit mockEmeaChCredit = EmeaChCredit.builder()
+            .id(VALID_ID)
+            .bic(VALID_BIC)
+            .branch(VALID_BRANCH)
+            .creditAccount(VALID_CREDIT_ACCOUNT)
+            .creditAccountName(VALID_CREDIT_ACCOUNT_NAME)
+            .status(VALID_STATUS)
+            .createdDateTime(NOW)
+            .updatedDatetime(NOW)
+            .build();
 
-        when(rccsDalServiceClient.getResource(any(String.class), eq(CapLimitEmea.class)))
-                .thenReturn(Mono.just(mockCapLimit));
+            when(rccsDalServiceClient.getResource(any(String.class), eq(EmeaChCredit.class)))
+        .thenReturn(Mono.just(mockEmeaChCredit));
+
+        // When
+        EmeaChCredit result = emeaChCreditDao.findByBicAndBranch(VALID_BIC, VALID_BRANCH);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(VALID_BIC, result.getBic());
+        assertEquals(VALID_BRANCH, result.getBranch());
+        assertEquals(VALID_CREDIT_ACCOUNT, result.getCreditAccount());
+        assertEquals(VALID_CREDIT_ACCOUNT_NAME, result.getCreditAccountName());
+        assertEquals(VALID_STATUS, result.getStatus());
+        }
+
+@Test
+    void findByBicAndBranch_WhenResourceNotFound_ReturnsNull() throws RccsApiException {
+            // Given
+            when(rccsDalServiceClient.getResource(any(String.class), eq(EmeaChCredit.class)))
+        .thenReturn(Mono.error(new DalResourceNotFoundException("Resource not found")));
+
+        // When
+        EmeaChCredit result = emeaChCreditDao.findByBicAndBranch(VALID_BIC, VALID_BRANCH);
+
+        // Then
+        assertNull(result);
+        }
+
+@Test
+    void findByBicAndBranch_WhenGeneralException_ThrowsRccsApiException() {
+            // Given
+            when(rccsDalServiceClient.getResource(any(String.class), eq(EmeaChCredit.class)))
+        .thenReturn(Mono.error(new RuntimeException("Unexpected error")));
 
         // When & Then
-        StepVerifier.create(capLimitEmeaDao.getCapLimitAmount(VALID_CURRENCY))
-                .expectNext(VALID_CAP_LIMIT)
-                .verifyComplete();
-    }
-
-    @Test
-    void getCapLimitAmount_WithBlankCurrency_ThrowsException() {
         assertThrows(RccsApiException.class, () ->
-                capLimitEmeaDao.getCapLimitAmount("")
+        emeaChCreditDao.findByBicAndBranch(VALID_BIC, VALID_BRANCH)
         );
-    }
+        }
 
-    @Test
-    void getCapLimitAmount_WhenResourceNotFound_ReturnsEmptyMono() throws RccsApiException {
-        // Given
-        when(rccsDalServiceClient.getResource(any(String.class), eq(CapLimitEmea.class)))
-                .thenReturn(Mono.error(new DalResourceNotFoundException("Resource not found")));
+@Test
+    void findByBicAndBranch_WhenEmptyResponse_ReturnsNull() throws RccsApiException {
+            // Given
+            when(rccsDalServiceClient.getResource(any(String.class), eq(EmeaChCredit.class)))
+        .thenReturn(Mono.empty());
 
-        // When & Then
-        StepVerifier.create(capLimitEmeaDao.getCapLimitAmount(VALID_CURRENCY))
-                .verifyComplete();
-    }
+        // When
+        EmeaChCredit result = emeaChCreditDao.findByBicAndBranch(VALID_BIC, VALID_BRANCH);
 
-    @Test
-    void getCapLimitAmount_WhenGeneralException_ThrowsRccsApiException() {
-        // Given
-        when(rccsDalServiceClient.getResource(any(String.class), eq(CapLimitEmea.class)))
-                .thenReturn(Mono.error(new RuntimeException("Unexpected error")));
-
-        // When & Then
-        StepVerifier.create(capLimitEmeaDao.getCapLimitAmount(VALID_CURRENCY))
-                .expectError(RccsApiException.class)
-                .verify();
-    }
-
-    @Test
-    void getCapLimitAmount_WhenEmptyResponse_ReturnsEmptyMono() throws RccsApiException {
-        // Given
-        when(rccsDalServiceClient.getResource(any(String.class), eq(CapLimitEmea.class)))
-                .thenReturn(Mono.empty());
-
-        // When & Then
-        StepVerifier.create(capLimitEmeaDao.getCapLimitAmount(VALID_CURRENCY))
-                .verifyComplete();
-    }
-}
+        // Then
+        assertNull(result);
+        }
+        }
 
