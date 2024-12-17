@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.ExtendWith;
 import test.project1.controller.WordAnalyzerVerticle;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -79,12 +80,11 @@ public class ServerTest {
 }
 
 
-class OriginatorDebitAccountMappingDaoTest {
+class CapLimitEmeaDaoTest {
 
-    private static final String VALID_ORIGINATOR_ACCOUNT = "ORIG123";
-    private static final String VALID_DEBIT_ACCOUNT = "DEBIT456";
-    private static final String VALID_DEBTOR_NAME = "Test Debtor";
-    private static final Long VALID_DEBIT_ID = 1L;
+    private static final String VALID_CURRENCY = "USD";
+    private static final BigDecimal VALID_CAP_LIMIT = new BigDecimal("1000000.00");
+    private static final Long VALID_ID = 1L;
     private static final String TEST_ENDPOINT = "http://test-endpoint";
     private static final LocalDateTime NOW = LocalDateTime.now();
 
@@ -98,10 +98,10 @@ class OriginatorDebitAccountMappingDaoTest {
     private DalServiceConfigProperties.EndPoint endPoint;
 
     @Mock
-    private DalServiceConfigProperties.EndPoint.OriginatorDebitAccount originatorDebitAccount;
+    private DalServiceConfigProperties.EndPoint.CapLimitEmea capLimitEmea;
 
     @InjectMocks
-    private OriginatorDebitAccountMappingDao originatorDebitAccountMappingDao;
+    private CapLimitEmeaDao capLimitEmeaDao;
 
     @BeforeEach
     void setUp() {
@@ -109,70 +109,69 @@ class OriginatorDebitAccountMappingDaoTest {
 
         // Setup the mock chain
         when(dalServiceConfigProperties.endPoint()).thenReturn(endPoint);
-        when(endPoint.originatorDebitAccount()).thenReturn(originatorDebitAccount);
-        when(originatorDebitAccount.getByOriginatorAccountNumber())
-                .thenReturn(TEST_ENDPOINT + "/originatorDebitAccount");
+        when(endPoint.capLimitEmea()).thenReturn(capLimitEmea);
+        when(capLimitEmea.getByCurrency())
+                .thenReturn(TEST_ENDPOINT + "/capLimitEmea");
     }
 
     @Test
-    void getDebitAccount_WithValidOriginatorAccount_ReturnsDebitAccount() throws RccsApiException {
+    void getCapLimitAmount_WithValidCurrency_ReturnsCapLimit() throws RccsApiException {
         // Given
-        OriginatorDebitAccount mockMapping = OriginatorDebitAccount.builder()
-                .debitId(VALID_DEBIT_ID)
-                .originatorAccount(VALID_ORIGINATOR_ACCOUNT)
-                .debitAccount(VALID_DEBIT_ACCOUNT)
-                .debtorName(VALID_DEBTOR_NAME)
+        CapLimitEmea mockCapLimit = CapLimitEmea.builder()
+                .id(VALID_ID)
+                .currency(VALID_CURRENCY)
+                .capLimit(VALID_CAP_LIMIT)
                 .createdDateTime(NOW)
                 .updatedDatetime(NOW)
                 .build();
 
-        when(rccsDalServiceClient.getResource(any(String.class), eq(OriginatorDebitAccount.class)))
-                .thenReturn(Mono.just(mockMapping));
+        when(rccsDalServiceClient.getResource(any(String.class), eq(CapLimitEmea.class)))
+                .thenReturn(Mono.just(mockCapLimit));
 
         // When & Then
-        StepVerifier.create(originatorDebitAccountMappingDao.getDebitAccount(VALID_ORIGINATOR_ACCOUNT))
-                .expectNext(VALID_DEBIT_ACCOUNT)
+        StepVerifier.create(capLimitEmeaDao.getCapLimitAmount(VALID_CURRENCY))
+                .expectNext(VALID_CAP_LIMIT)
                 .verifyComplete();
     }
 
     @Test
-    void getDebitAccount_WithBlankOriginatorAccount_ThrowsException() {
+    void getCapLimitAmount_WithBlankCurrency_ThrowsException() {
         assertThrows(RccsApiException.class, () ->
-                originatorDebitAccountMappingDao.getDebitAccount("")
+                capLimitEmeaDao.getCapLimitAmount("")
         );
     }
 
     @Test
-    void getDebitAccount_WhenResourceNotFound_ReturnsEmptyMono() throws RccsApiException {
+    void getCapLimitAmount_WhenResourceNotFound_ReturnsEmptyMono() throws RccsApiException {
         // Given
-        when(rccsDalServiceClient.getResource(any(String.class), eq(OriginatorDebitAccount.class)))
+        when(rccsDalServiceClient.getResource(any(String.class), eq(CapLimitEmea.class)))
                 .thenReturn(Mono.error(new DalResourceNotFoundException("Resource not found")));
 
         // When & Then
-        StepVerifier.create(originatorDebitAccountMappingDao.getDebitAccount(VALID_ORIGINATOR_ACCOUNT))
+        StepVerifier.create(capLimitEmeaDao.getCapLimitAmount(VALID_CURRENCY))
                 .verifyComplete();
     }
 
     @Test
-    void getDebitAccount_WhenGeneralException_ThrowsRccsApiException() {
+    void getCapLimitAmount_WhenGeneralException_ThrowsRccsApiException() {
         // Given
-        when(rccsDalServiceClient.getResource(any(String.class), eq(OriginatorDebitAccount.class)))
+        when(rccsDalServiceClient.getResource(any(String.class), eq(CapLimitEmea.class)))
                 .thenReturn(Mono.error(new RuntimeException("Unexpected error")));
 
         // When & Then
-        StepVerifier.create(originatorDebitAccountMappingDao.getDebitAccount(VALID_ORIGINATOR_ACCOUNT))
+        StepVerifier.create(capLimitEmeaDao.getCapLimitAmount(VALID_CURRENCY))
                 .expectError(RccsApiException.class)
                 .verify();
     }
 
     @Test
-    void getDebitAccount_WhenEmptyResponse_ReturnsEmptyMono() throws RccsApiException {
+    void getCapLimitAmount_WhenEmptyResponse_ReturnsEmptyMono() throws RccsApiException {
         // Given
-        when(rccsDalServiceClient.getResource(any(String.class), eq(OriginatorDebitAccount.class)))
+        when(rccsDalServiceClient.getResource(any(String.class), eq(CapLimitEmea.class)))
                 .thenReturn(Mono.empty());
 
         // When & Then
-        StepVerifier.create(originatorDebitAccountMappingDao.getDebitAccount(VALID_ORIGINATOR_ACCOUNT))
+        StepVerifier.create(capLimitEmeaDao.getCapLimitAmount(VALID_CURRENCY))
                 .verifyComplete();
     }
 }
