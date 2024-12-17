@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.ExtendWith;
 import test.project1.controller.WordAnalyzerVerticle;
 
+import java.time.LocalDateTime;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -77,12 +78,14 @@ public class ServerTest {
     }
 }
 
-
-class EmeaNstpBankAgreementDaoTest {
+class EmeaWaiverAccountDaoTest {
 
     private static final String VALID_BIC = "TESTBIC1";
     private static final String STANDARDIZED_BIC = "STANDARDIZEDBIC";
+    private static final String VALID_STATUS = "ACTIVE";
+    private static final Long VALID_ID = 1L;
     private static final String TEST_ENDPOINT = "http://test-endpoint";
+    private static final LocalDateTime NOW = LocalDateTime.now();
 
     @Mock
     private DalServiceConfigProperties dalServiceConfigProperties;
@@ -100,10 +103,10 @@ class EmeaNstpBankAgreementDaoTest {
     private DalServiceConfigProperties.EndPoint.Reference reference;
 
     @Mock
-    private DalServiceConfigProperties.EndPoint.Reference.EmeaNstpBankAgreement emeaNstpBankAgreement;
+    private DalServiceConfigProperties.EndPoint.Reference.WaiverBics waiverBics;
 
     @InjectMocks
-    private EmeaNstpBankAgreementDao emeaNstpBankAgreementDao;
+    private EmeaWaiverAccountDao emeaWaiverAccountDao;
 
     @BeforeEach
     void setUp() {
@@ -112,72 +115,88 @@ class EmeaNstpBankAgreementDaoTest {
         // Setup the mock chain
         when(dalServiceConfigProperties.endPoint()).thenReturn(endPoint);
         when(endPoint.reference()).thenReturn(reference);
-        when(reference.emeaNstpBankAgreement()).thenReturn(emeaNstpBankAgreement);
-        when(emeaNstpBankAgreement.existsByBic())
-                .thenReturn(TEST_ENDPOINT + "/emeaNstpBankAgreement");
-        when(environmentService.getStandardPbrmSearchBic(VALID_BIC))
+        when(reference.waiverBics()).thenReturn(waiverBics);
+        when(waiverBics.getWaiverBics())
+                .thenReturn(TEST_ENDPOINT + "/waiverBics");
+        when(environmentService.getStandardSearchBic(VALID_BIC))
                 .thenReturn(STANDARDIZED_BIC);
     }
 
     @Test
-    void isAgreementAvailableForBic_WhenAgreementExists_ReturnsTrue() throws RccsApiException {
+    void isWaiverAvailable_WhenBicMatches_ReturnsTrue() throws RccsApiException {
         // Given
-        when(rccsDalServiceClient.getResource(any(String.class), eq(Boolean.class)))
-                .thenReturn(Mono.just(true));
+        WaiverBics mockWaiverBics = WaiverBics.builder()
+                .waiverId(VALID_ID)
+                .bicCode(VALID_BIC)
+                .status(VALID_STATUS)
+                .createdDateTime(NOW)
+                .updatedDatetime(NOW)
+                .build();
+
+        when(rccsDalServiceClient.getResource(any(String.class), eq(WaiverBics.class)))
+                .thenReturn(Mono.just(mockWaiverBics));
 
         // When
-        boolean result = emeaNstpBankAgreementDao.isAgreementAvailableForBic(VALID_BIC);
+        boolean result = emeaWaiverAccountDao.isWaiverAvailable(VALID_BIC);
 
         // Then
         assertTrue(result);
     }
 
     @Test
-    void isAgreementAvailableForBic_WhenAgreementDoesNotExist_ReturnsFalse() throws RccsApiException {
+    void isWaiverAvailable_WhenBicDoesNotMatch_ReturnsFalse() throws RccsApiException {
         // Given
-        when(rccsDalServiceClient.getResource(any(String.class), eq(Boolean.class)))
-                .thenReturn(Mono.just(false));
+        WaiverBics mockWaiverBics = WaiverBics.builder()
+                .waiverId(VALID_ID)
+                .bicCode("DIFFERENT_BIC")
+                .status(VALID_STATUS)
+                .createdDateTime(NOW)
+                .updatedDatetime(NOW)
+                .build();
+
+        when(rccsDalServiceClient.getResource(any(String.class), eq(WaiverBics.class)))
+                .thenReturn(Mono.just(mockWaiverBics));
 
         // When
-        boolean result = emeaNstpBankAgreementDao.isAgreementAvailableForBic(VALID_BIC);
+        boolean result = emeaWaiverAccountDao.isWaiverAvailable(VALID_BIC);
 
         // Then
         assertFalse(result);
     }
 
     @Test
-    void isAgreementAvailableForBic_WhenResourceNotFound_ReturnsFalse() throws RccsApiException {
+    void isWaiverAvailable_WhenResourceNotFound_ReturnsFalse() throws RccsApiException {
         // Given
-        when(rccsDalServiceClient.getResource(any(String.class), eq(Boolean.class)))
+        when(rccsDalServiceClient.getResource(any(String.class), eq(WaiverBics.class)))
                 .thenReturn(Mono.error(new DalResourceNotFoundException("Resource not found")));
 
         // When
-        boolean result = emeaNstpBankAgreementDao.isAgreementAvailableForBic(VALID_BIC);
+        boolean result = emeaWaiverAccountDao.isWaiverAvailable(VALID_BIC);
 
         // Then
         assertFalse(result);
     }
 
     @Test
-    void isAgreementAvailableForBic_WhenGeneralException_ThrowsRccsApiException() {
+    void isWaiverAvailable_WhenGeneralException_ThrowsRccsApiException() {
         // Given
-        when(rccsDalServiceClient.getResource(any(String.class), eq(Boolean.class)))
+        when(rccsDalServiceClient.getResource(any(String.class), eq(WaiverBics.class)))
                 .thenReturn(Mono.error(new RuntimeException("Unexpected error")));
 
         // When & Then
         assertThrows(RccsApiException.class, () ->
-                emeaNstpBankAgreementDao.isAgreementAvailableForBic(VALID_BIC)
+                emeaWaiverAccountDao.isWaiverAvailable(VALID_BIC)
         );
     }
 
     @Test
-    void isAgreementAvailableForBic_WhenEmptyResponse_ReturnsFalse() throws RccsApiException {
+    void isWaiverAvailable_WhenEmptyResponse_ReturnsFalse() throws RccsApiException {
         // Given
-        when(rccsDalServiceClient.getResource(any(String.class), eq(Boolean.class)))
+        when(rccsDalServiceClient.getResource(any(String.class), eq(WaiverBics.class)))
                 .thenReturn(Mono.empty());
 
         // When
-        boolean result = emeaNstpBankAgreementDao.isAgreementAvailableForBic(VALID_BIC);
+        boolean result = emeaWaiverAccountDao.isWaiverAvailable(VALID_BIC);
 
         // Then
         assertFalse(result);
