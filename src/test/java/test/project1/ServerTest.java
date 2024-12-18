@@ -77,16 +77,6 @@ public class ServerTest {
     }
 }
 
-import org.junit.jupiter.api.BeforeEach;
-        import org.junit.jupiter.api.Test;
-        import org.springframework.http.HttpStatus;
-        import org.springframework.web.reactive.function.client.ClientResponse;
-        import reactor.core.publisher.Mono;
-        import reactor.test.StepVerifier;
-
-        import static org.mockito.Mockito.mock;
-        import static org.mockito.Mockito.when;
-
 class ILExceptionHandlerTest {
 
     private ILExceptionHandler ilExceptionHandler;
@@ -99,7 +89,7 @@ class ILExceptionHandlerTest {
     }
 
     @Test
-    void apply_WhenStatus401_ReturnsAuthException() {
+    void apply_WhenStatus401_ReturnsAuthError() {
         // Given
         when(clientResponse.statusCode()).thenReturn(HttpStatus.UNAUTHORIZED);
 
@@ -108,12 +98,14 @@ class ILExceptionHandlerTest {
 
         // Then
         StepVerifier.create(result)
-                .expectError(ILAuthException.class)
+                .expectErrorMatches(throwable ->
+                        throwable instanceof Exception &&
+                                throwable.getMessage().equals("Auth error"))
                 .verify();
     }
 
     @Test
-    void apply_WhenStatus403_ReturnsAuthException() {
+    void apply_WhenStatus403_ReturnsAuthError() {
         // Given
         when(clientResponse.statusCode()).thenReturn(HttpStatus.FORBIDDEN);
 
@@ -122,12 +114,14 @@ class ILExceptionHandlerTest {
 
         // Then
         StepVerifier.create(result)
-                .expectError(ILAuthException.class)
+                .expectErrorMatches(throwable ->
+                        throwable instanceof Exception &&
+                                throwable.getMessage().equals("Auth error"))
                 .verify();
     }
 
     @Test
-    void apply_WhenStatus404_ReturnsNotFoundException() {
+    void apply_WhenStatus404_ReturnsNotFoundError() {
         // Given
         when(clientResponse.statusCode()).thenReturn(HttpStatus.NOT_FOUND);
 
@@ -136,12 +130,14 @@ class ILExceptionHandlerTest {
 
         // Then
         StepVerifier.create(result)
-                .expectError(ILNotFoundException.class)
+                .expectErrorMatches(throwable ->
+                        throwable instanceof Exception &&
+                                throwable.getMessage().equals("Maybe not an error?"))
                 .verify();
     }
 
     @Test
-    void apply_WhenStatus500_ReturnsServerException() {
+    void apply_WhenStatus500_ReturnsServerError() {
         // Given
         when(clientResponse.statusCode()).thenReturn(HttpStatus.INTERNAL_SERVER_ERROR);
 
@@ -150,12 +146,14 @@ class ILExceptionHandlerTest {
 
         // Then
         StepVerifier.create(result)
-                .expectError(ILServerException.class)
+                .expectErrorMatches(throwable ->
+                        throwable instanceof Exception &&
+                                throwable.getMessage().equals("Server error"))
                 .verify();
     }
 
     @Test
-    void apply_WhenUnknownStatus_ReturnsILException() {
+    void apply_WhenUnknownStatus_ReturnsDefaultError() {
         // Given
         when(clientResponse.statusCode()).thenReturn(HttpStatus.BAD_GATEWAY);
 
@@ -164,7 +162,9 @@ class ILExceptionHandlerTest {
 
         // Then
         StepVerifier.create(result)
-                .expectError(ILException.class)
+                .expectErrorMatches(throwable ->
+                        throwable instanceof Exception &&
+                                throwable.getMessage().equals("Something went wrong"))
                 .verify();
     }
 }
