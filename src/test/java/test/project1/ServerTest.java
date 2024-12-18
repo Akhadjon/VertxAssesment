@@ -78,83 +78,83 @@ public class ServerTest {
 }
 
 
-class WaiverBicsDaoTest {
+class ClientLondonDaoTest {
 
-    private static final String VALID_BIC = "TESTBIC1";
-    private static final String STANDARDIZED_BIC = "STANDARDIZEDBIC";
-    private static final Long VALID_WAIVER_ID = 1L;
+    private static final String VALID_DEBIT_ACCOUNT = "12345678";
+    private static final Long VALID_CLIENT_ID = 1L;
+    private static final String VALID_ORIGINATOR_ACCOUNT = "87654321";
+    private static final String VALID_CLIENT_NAME = "Test Client";
 
     @Mock
     private RccsDalServiceClient rccsDalServiceClient;
 
-    @Mock
-    private EnvironmentService environmentService;
-
     @InjectMocks
-    private WaiverBicsDao waiverBicsDao;
+    private ClientLondonDao clientLondonDao;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        when(environmentService.getStandardSearchBic(VALID_BIC))
-                .thenReturn(STANDARDIZED_BIC);
     }
 
     @Test
-    void getWaiverBic_WhenBicExists_ReturnsWaiverBic() throws RccsApiException {
+    void getClientLondonDetails_WhenAccountExists_ReturnsClientLondon() throws RccsApiException {
         // Given
-        WaiverBics mockWaiverBics = WaiverBics.builder()
-                .waiverId(VALID_WAIVER_ID)
-                .bicCode(VALID_BIC)
+        ClientLondon mockClientLondon = ClientLondon.builder()
+                .clientId(VALID_CLIENT_ID)
+                .originatorAccount(VALID_ORIGINATOR_ACCOUNT)
+                .debitAccount(VALID_DEBIT_ACCOUNT)
+                .clientName(VALID_CLIENT_NAME)
                 .build();
 
-        when(rccsDalServiceClient.getResource(any(String.class), eq(WaiverBics.class)))
-                .thenReturn(Mono.just(mockWaiverBics));
+        when(rccsDalServiceClient.getResource(any(String.class), eq(ClientLondon.class)))
+                .thenReturn(Mono.just(mockClientLondon));
 
         // When
-        WaiverBics result = waiverBicsDao.getWaiverBic(VALID_BIC);
+        ClientLondon result = clientLondonDao.getClientLondonDetails(VALID_DEBIT_ACCOUNT);
 
         // Then
         assertNotNull(result);
-        assertEquals(VALID_BIC, result.getBicCode());
-        assertEquals(VALID_WAIVER_ID, result.getWaiverId());
+        assertEquals(VALID_CLIENT_ID, result.getClientId());
+        assertEquals(VALID_ORIGINATOR_ACCOUNT, result.getOriginatorAccount());
+        assertEquals(VALID_DEBIT_ACCOUNT, result.getDebitAccount());
+        assertEquals(VALID_CLIENT_NAME, result.getClientName());
     }
 
     @Test
-    void getWaiverBic_WhenBicNotFound_ReturnsNull() throws RccsApiException {
+    void getClientLondonDetails_WhenAccountNotFound_ReturnsNull() throws RccsApiException {
         // Given
-        when(rccsDalServiceClient.getResource(any(String.class), eq(WaiverBics.class)))
+        when(rccsDalServiceClient.getResource(any(String.class), eq(ClientLondon.class)))
                 .thenReturn(Mono.empty());
 
         // When
-        WaiverBics result = waiverBicsDao.getWaiverBic(VALID_BIC);
+        ClientLondon result = clientLondonDao.getClientLondonDetails(VALID_DEBIT_ACCOUNT);
 
         // Then
         assertNull(result);
     }
 
     @Test
-    void getWaiverBic_WhenError_ReturnsNull() throws RccsApiException {
+    void getClientLondonDetails_WhenError_ReturnsNull() throws RccsApiException {
         // Given
-        when(rccsDalServiceClient.getResource(any(String.class), eq(WaiverBics.class)))
+        when(rccsDalServiceClient.getResource(any(String.class), eq(ClientLondon.class)))
                 .thenReturn(Mono.error(new RuntimeException("Test error")));
 
         // When
-        WaiverBics result = waiverBicsDao.getWaiverBic(VALID_BIC);
+        ClientLondon result = clientLondonDao.getClientLondonDetails(VALID_DEBIT_ACCOUNT);
 
         // Then
         assertNull(result);
     }
 
     @Test
-    void getWaiverBic_WhenGeneralException_ThrowsRccsApiException() {
+    void getClientLondonDetails_WhenGeneralException_ThrowsRccsApiException() {
         // Given
-        when(rccsDalServiceClient.getResource(any(String.class), eq(WaiverBics.class)))
+        when(rccsDalServiceClient.getResource(any(String.class), eq(ClientLondon.class)))
                 .thenThrow(new RuntimeException("Unexpected error"));
 
         // When & Then
         assertThrows(RccsApiException.class, () ->
-                waiverBicsDao.getWaiverBic(VALID_BIC)
+                clientLondonDao.getClientLondonDetails(VALID_DEBIT_ACCOUNT)
         );
     }
 }
