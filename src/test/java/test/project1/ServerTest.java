@@ -77,60 +77,109 @@ public class ServerTest {
     }
 }
 
+    mport org.junit.jupiter.api.BeforeEach;
+        import org.junit.jupiter.api.Test;
+        import org.springframework.http.HttpStatus;
+        import org.springframework.web.reactive.function.client.ClientResponse;
+        import reactor.core.publisher.Mono;
+        import reactor.test.StepVerifier;
 
-class RccsSneakyExceptionTest {
+        import static org.mockito.Mockito.mock;
+        import static org.mockito.Mockito.when;
 
-    @Test
-    void constructor_WithErrorCodes_SetsAllFields() {
-        // Given
-        String message = "Test error";
-        RccsErrorCode[] errorCodes = {RccsErrorCode.INTERNAL_ERROR, RccsErrorCode.BAD_REQUEST};
+class PrcExceptionHandlerTest {
 
-        // When
-        RccsSneakyException exception = new RccsSneakyException(message, errorCodes);
+    private PrcExceptionHandler prcExceptionHandler;
+    private ClientResponse clientResponse;
 
-        // Then
-        assertEquals(message, exception.getMessage());
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, exception.getStatus());
-        assertNotNull(exception.getErrors());
-        assertEquals(2, exception.getErrors().size());
-
-        Error firstError = exception.getErrors().get(0);
-        assertEquals(500, firstError.code());
-        assertEquals("Internal server error occurred", firstError.message());
-
-        Error secondError = exception.getErrors().get(1);
-        assertEquals(400, secondError.code());
-        assertEquals("Bad request", secondError.message());
+    @BeforeEach
+    void setUp() {
+        prcExceptionHandler = new PrcExceptionHandler();
+        clientResponse = mock(ClientResponse.class);
     }
 
     @Test
-    void constructor_WithNullErrorCodes_SetsNullErrors() {
+    void apply_WhenStatus400_ReturnsBadRequestException() {
         // Given
-        String message = "Test error";
+        when(clientResponse.statusCode()).thenReturn(HttpStatus.BAD_REQUEST);
 
         // When
-        RccsSneakyException exception = new RccsSneakyException(message);
+        Mono<? extends Throwable> result = prcExceptionHandler.apply(clientResponse);
 
         // Then
-        assertEquals(message, exception.getMessage());
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, exception.getStatus());
-        assertNull(exception.getErrors());
+        StepVerifier.create(result)
+                .expectError(DalResourceBadRequestException.class)
+                .verify();
     }
 
     @Test
-    void constructor_WithEmptyErrorCodes_SetsNullErrors() {
+    void apply_WhenStatus401_ReturnsAuthenticationException() {
         // Given
-        String message = "Test error";
-        RccsErrorCode[] errorCodes = {};
+        when(clientResponse.statusCode()).thenReturn(HttpStatus.UNAUTHORIZED);
 
         // When
-        RccsSneakyException exception = new RccsSneakyException(message, errorCodes);
+        Mono<? extends Throwable> result = prcExceptionHandler.apply(clientResponse);
 
         // Then
-        assertEquals(message, exception.getMessage());
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, exception.getStatus());
-        assertNull(exception.getErrors());
+        StepVerifier.create(result)
+                .expectError(DalResourceAuthenticationException.class)
+                .verify();
+    }
+
+    @Test
+    void apply_WhenStatus403_ReturnsAuthenticationException() {
+        // Given
+        when(clientResponse.statusCode()).thenReturn(HttpStatus.FORBIDDEN);
+
+        // When
+        Mono<? extends Throwable> result = prcExceptionHandler.apply(clientResponse);
+
+        // Then
+        StepVerifier.create(result)
+                .expectError(DalResourceAuthenticationException.class)
+                .verify();
+    }
+
+    @Test
+    void apply_WhenStatus404_ReturnsNotFoundException() {
+        // Given
+        when(clientResponse.statusCode()).thenReturn(HttpStatus.NOT_FOUND);
+
+        // When
+        Mono<? extends Throwable> result = prcExceptionHandler.apply(clientResponse);
+
+        // Then
+        StepVerifier.create(result)
+                .expectError(DalResourceNotFoundException.class)
+                .verify();
+    }
+
+    @Test
+    void apply_WhenStatus500_ReturnsInternalErrorException() {
+        // Given
+        when(clientResponse.statusCode()).thenReturn(HttpStatus.INTERNAL_SERVER_ERROR);
+
+        // When
+        Mono<? extends Throwable> result = prcExceptionHandler.apply(clientResponse);
+
+        // Then
+        StepVerifier.create(result)
+                .expectError(DalResourceInternalErrorException.class)
+                .verify();
+    }
+
+    @Test
+    void apply_WhenUnknownStatus_ReturnsServiceException() {
+        // Given
+        when(clientResponse.statusCode()).thenReturn(HttpStatus.SERVICE_UNAVAILABLE);
+
+        // When
+        Mono<? extends Throwable> result = prcExceptionHandler.apply(clientResponse);
+
+        // Then
+        StepVerifier.create(result)
+                .expectError(DalServiceException.class)
+                .verify();
     }
 }
 
