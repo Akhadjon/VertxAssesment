@@ -12,8 +12,6 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.ExtendWith;
 import test.project1.controller.WordAnalyzerVerticle;
 
-import java.util.Collections;
-import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -82,88 +80,92 @@ public class ServerTest {
 import org.junit.jupiter.api.BeforeEach;
         import org.junit.jupiter.api.Test;
         import org.springframework.http.HttpStatus;
-        import org.springframework.http.ResponseEntity;
+        import org.springframework.web.reactive.function.client.ClientResponse;
+        import reactor.core.publisher.Mono;
+        import reactor.test.StepVerifier;
 
-        import java.util.Collections;
-        import java.util.List;
-
-        import static org.junit.jupiter.api.Assertions.assertEquals;
-        import static org.junit.jupiter.api.Assertions.assertFalse;
         import static org.mockito.Mockito.mock;
         import static org.mockito.Mockito.when;
 
-class GlobalExceptionHandlerTest {
+class ILExceptionHandlerTest {
 
-    private GlobalExceptionHandler globalExceptionHandler;
+    private ILExceptionHandler ilExceptionHandler;
+    private ClientResponse clientResponse;
 
     @BeforeEach
     void setUp() {
-        globalExceptionHandler = new GlobalExceptionHandler();
+        ilExceptionHandler = new ILExceptionHandler();
+        clientResponse = mock(ClientResponse.class);
     }
 
     @Test
-    void handleRccsApiException_ReturnsCorrectResponse() {
+    void apply_WhenStatus401_ReturnsAuthException() {
         // Given
-        RccsApiException exception = mock(RccsApiException.class);
-        Error error = Error.builder()
-                .code("ERR001")
-                .message("Test error")
-                .build();
-        List<Error> errors = Collections.singletonList(error);
-
-        when(exception.getStatus()).thenReturn(HttpStatus.BAD_REQUEST);
-        when(exception.getErrors()).thenReturn(errors);
+        when(clientResponse.statusCode()).thenReturn(HttpStatus.UNAUTHORIZED);
 
         // When
-        ResponseEntity<ApiResponse<List<Error>>> response = globalExceptionHandler.handleRccsApiException(exception);
+        Mono<? extends Throwable> result = ilExceptionHandler.apply(clientResponse);
 
         // Then
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertFalse(response.getBody().isSuccess());
-        assertEquals("Unable to fulfill the request", response.getBody().getMessage());
-        assertEquals(errors, response.getBody().getErrors());
+        StepVerifier.create(result)
+                .expectError(ILAuthException.class)
+                .verify();
     }
 
     @Test
-    void handleRccsSneakyException_ReturnsCorrectResponse() {
+    void apply_WhenStatus403_ReturnsAuthException() {
         // Given
-        RccsSneakyException exception = mock(RccsSneakyException.class);
-        Error error = Error.builder()
-                .code("ERR002")
-                .message("Sneaky error")
-                .build();
-        List<Error> errors = Collections.singletonList(error);
-
-        when(exception.getErrors()).thenReturn(errors);
+        when(clientResponse.statusCode()).thenReturn(HttpStatus.FORBIDDEN);
 
         // When
-        ResponseEntity<ApiResponse<List<Error>>> response = globalExceptionHandler.handleRccsSneakyException(exception);
+        Mono<? extends Throwable> result = ilExceptionHandler.apply(clientResponse);
 
         // Then
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
-        assertFalse(response.getBody().isSuccess());
-        assertEquals("Unable to fulfill the request", response.getBody().getMessage());
-        assertEquals(errors, response.getBody().getErrors());
+        StepVerifier.create(result)
+                .expectError(ILAuthException.class)
+                .verify();
     }
 
     @Test
-    void handleBadRequestException_ReturnsCorrectResponse() {
+    void apply_WhenStatus404_ReturnsNotFoundException() {
         // Given
-        ILBadRequestException exception = mock(ILBadRequestException.class);
-        IsolationLayerResponse ilResponse = IsolationLayerResponse.builder()
-                .status("ERROR")
-                .message("Bad request")
-                .build();
-
-        when(exception.getHttpStatusCode()).thenReturn(HttpStatus.BAD_REQUEST);
-        when(exception.getIsolationLayerResponse()).thenReturn(ilResponse);
+        when(clientResponse.statusCode()).thenReturn(HttpStatus.NOT_FOUND);
 
         // When
-        ResponseEntity<IsolationLayerResponse> response = globalExceptionHandler.handleBadRequestException(exception);
+        Mono<? extends Throwable> result = ilExceptionHandler.apply(clientResponse);
 
         // Then
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals(ilResponse, response.getBody());
+        StepVerifier.create(result)
+                .expectError(ILNotFoundException.class)
+                .verify();
+    }
+
+    @Test
+    void apply_WhenStatus500_ReturnsServerException() {
+        // Given
+        when(clientResponse.statusCode()).thenReturn(HttpStatus.INTERNAL_SERVER_ERROR);
+
+        // When
+        Mono<? extends Throwable> result = ilExceptionHandler.apply(clientResponse);
+
+        // Then
+        StepVerifier.create(result)
+                .expectError(ILServerException.class)
+                .verify();
+    }
+
+    @Test
+    void apply_WhenUnknownStatus_ReturnsILException() {
+        // Given
+        when(clientResponse.statusCode()).thenReturn(HttpStatus.BAD_GATEWAY);
+
+        // When
+        Mono<? extends Throwable> result = ilExceptionHandler.apply(clientResponse);
+
+        // Then
+        StepVerifier.create(result)
+                .expectError(ILException.class)
+                .verify();
     }
 }
 
