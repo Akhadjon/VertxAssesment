@@ -77,110 +77,27 @@ public class ServerTest {
     }
 }
 
-    mport org.junit.jupiter.api.BeforeEach;
-        import org.junit.jupiter.api.Test;
-        import org.springframework.http.HttpStatus;
-        import org.springframework.web.reactive.function.client.ClientResponse;
-        import reactor.core.publisher.Mono;
-        import reactor.test.StepVerifier;
+class WebClientExceptionHandlerTest {
 
-        import static org.mockito.Mockito.mock;
-        import static org.mockito.Mockito.when;
-
-class PrcExceptionHandlerTest {
-
-    private PrcExceptionHandler prcExceptionHandler;
-    private ClientResponse clientResponse;
-
-    @BeforeEach
-    void setUp() {
-        prcExceptionHandler = new PrcExceptionHandler();
-        clientResponse = mock(ClientResponse.class);
-    }
+    private final WebClientExceptionHandler exceptionHandler = new WebClientExceptionHandler();
 
     @Test
-    void apply_WhenStatus400_ReturnsBadRequestException() {
+    void handleException_WithPbrmException_ReturnsCorrectResponse() {
         // Given
-        when(clientResponse.statusCode()).thenReturn(HttpStatus.BAD_REQUEST);
+        String errorMessage = "Test error message";
+        PbrmException exception = new PbrmException(errorMessage);
 
         // When
-        Mono<? extends Throwable> result = prcExceptionHandler.apply(clientResponse);
+        ResponseEntity<WebClientErrorMessage> response = exceptionHandler.handleException(exception);
 
         // Then
-        StepVerifier.create(result)
-                .expectError(DalResourceBadRequestException.class)
-                .verify();
-    }
+        assertNotNull(response);
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
 
-    @Test
-    void apply_WhenStatus401_ReturnsAuthenticationException() {
-        // Given
-        when(clientResponse.statusCode()).thenReturn(HttpStatus.UNAUTHORIZED);
-
-        // When
-        Mono<? extends Throwable> result = prcExceptionHandler.apply(clientResponse);
-
-        // Then
-        StepVerifier.create(result)
-                .expectError(DalResourceAuthenticationException.class)
-                .verify();
-    }
-
-    @Test
-    void apply_WhenStatus403_ReturnsAuthenticationException() {
-        // Given
-        when(clientResponse.statusCode()).thenReturn(HttpStatus.FORBIDDEN);
-
-        // When
-        Mono<? extends Throwable> result = prcExceptionHandler.apply(clientResponse);
-
-        // Then
-        StepVerifier.create(result)
-                .expectError(DalResourceAuthenticationException.class)
-                .verify();
-    }
-
-    @Test
-    void apply_WhenStatus404_ReturnsNotFoundException() {
-        // Given
-        when(clientResponse.statusCode()).thenReturn(HttpStatus.NOT_FOUND);
-
-        // When
-        Mono<? extends Throwable> result = prcExceptionHandler.apply(clientResponse);
-
-        // Then
-        StepVerifier.create(result)
-                .expectError(DalResourceNotFoundException.class)
-                .verify();
-    }
-
-    @Test
-    void apply_WhenStatus500_ReturnsInternalErrorException() {
-        // Given
-        when(clientResponse.statusCode()).thenReturn(HttpStatus.INTERNAL_SERVER_ERROR);
-
-        // When
-        Mono<? extends Throwable> result = prcExceptionHandler.apply(clientResponse);
-
-        // Then
-        StepVerifier.create(result)
-                .expectError(DalResourceInternalErrorException.class)
-                .verify();
-    }
-
-    @Test
-    void apply_WhenUnknownStatus_ReturnsServiceException() {
-        // Given
-        when(clientResponse.statusCode()).thenReturn(HttpStatus.SERVICE_UNAVAILABLE);
-
-        // When
-        Mono<? extends Throwable> result = prcExceptionHandler.apply(clientResponse);
-
-        // Then
-        StepVerifier.create(result)
-                .expectError(DalServiceException.class)
-                .verify();
+        WebClientErrorMessage errorBody = response.getBody();
+        assertNotNull(errorBody);
+        assertEquals(errorMessage, errorBody.getMessage());
+        assertEquals(ErrorConstants.WEB_CLIENT_ERROR, errorBody.getDetails());
     }
 }
-
 
