@@ -77,100 +77,111 @@ public class ServerTest {
     }
 }
 
-    lass DalExceptionHandlerTest {
 
-private DalExceptionHandler dalExceptionHandler;
-private ClientResponse clientResponse;
+import org.junit.jupiter.api.BeforeEach;
+        import org.junit.jupiter.api.Test;
+        import org.springframework.http.HttpStatus;
+        import org.springframework.web.reactive.function.client.ClientResponse;
+        import reactor.core.publisher.Mono;
+        import reactor.test.StepVerifier;
 
-@BeforeEach
+        import static org.mockito.Mockito.mock;
+        import static org.mockito.Mockito.when;
+
+class DalExceptionHandlerTest {
+
+    private DalExceptionHandler dalExceptionHandler;
+    private ClientResponse clientResponse;
+
+    @BeforeEach
     void setUp() {
-            dalExceptionHandler = new DalExceptionHandler();
-            clientResponse = mock(ClientResponse.class);
-        }
+        dalExceptionHandler = new DalExceptionHandler();
+        clientResponse = mock(ClientResponse.class);
+    }
 
-@Test
+    @Test
     void apply_WhenStatus400_ReturnsBadRequestException() {
-            // Given
-            when(clientResponse.statusCode()).thenReturn(HttpStatus.BAD_REQUEST);
+        // Given
+        when(clientResponse.statusCode()).thenReturn(HttpStatus.BAD_REQUEST);
 
-            // When
-            Mono<? extends Throwable> result = dalExceptionHandler.apply(clientResponse);
+        // When
+        Mono<? extends Throwable> result = dalExceptionHandler.apply(clientResponse);
 
         // Then
         StepVerifier.create(result)
-        .expectNextMatches(throwable -> throwable instanceof DalResourceBadRequestException)
-        .verifyComplete();
-        }
+                .expectNextMatches(throwable -> throwable instanceof DalResourceBadRequestException)
+                .verifyComplete();
+    }
 
-@Test
+    @Test
     void apply_WhenStatus401_ReturnsAuthenticationException() {
-            // Given
-            when(clientResponse.statusCode()).thenReturn(HttpStatus.UNAUTHORIZED);
+        // Given
+        when(clientResponse.statusCode()).thenReturn(HttpStatus.UNAUTHORIZED);
 
-            // When
-            Mono<? extends Throwable> result = dalExceptionHandler.apply(clientResponse);
+        // When
+        Mono<? extends Throwable> result = dalExceptionHandler.apply(clientResponse);
 
         // Then
         StepVerifier.create(result)
-        .expectNextMatches(throwable -> throwable instanceof DalResourceAuthenticationException)
-        .verifyComplete();
-        }
+                .expectNextMatches(throwable -> throwable instanceof DalResourceAuthenticationException)
+                .verifyComplete();
+    }
 
-@Test
+    @Test
     void apply_WhenStatus403_ReturnsAuthenticationException() {
-            // Given
-            when(clientResponse.statusCode()).thenReturn(HttpStatus.FORBIDDEN);
+        // Given
+        when(clientResponse.statusCode()).thenReturn(HttpStatus.FORBIDDEN);
 
-            // When
-            Mono<? extends Throwable> result = dalExceptionHandler.apply(clientResponse);
+        // When
+        Mono<? extends Throwable> result = dalExceptionHandler.apply(clientResponse);
 
         // Then
         StepVerifier.create(result)
-        .expectNextMatches(throwable -> throwable instanceof DalResourceAuthenticationException)
-        .verifyComplete();
-        }
+                .expectNextMatches(throwable -> throwable instanceof DalResourceAuthenticationException)
+                .verifyComplete();
+    }
 
-@Test
+    @Test
     void apply_WhenStatus404_ReturnsNotFoundException() {
-            // Given
-            when(clientResponse.statusCode()).thenReturn(HttpStatus.NOT_FOUND);
+        // Given
+        when(clientResponse.statusCode()).thenReturn(HttpStatus.NOT_FOUND);
 
-            // When
-            Mono<? extends Throwable> result = dalExceptionHandler.apply(clientResponse);
+        // When
+        Mono<? extends Throwable> result = dalExceptionHandler.apply(clientResponse);
 
         // Then
         StepVerifier.create(result)
-        .expectNextMatches(throwable -> throwable instanceof DalResourceNotFoundException)
-        .verifyComplete();
-        }
+                .expectNextMatches(throwable -> throwable instanceof DalResourceNotFoundException)
+                .verifyComplete();
+    }
 
-@Test
+    @Test
     void apply_WhenStatus500_ReturnsInternalErrorException() {
-            // Given
-            when(clientResponse.statusCode()).thenReturn(HttpStatus.INTERNAL_SERVER_ERROR);
+        // Given
+        when(clientResponse.statusCode()).thenReturn(HttpStatus.INTERNAL_SERVER_ERROR);
 
-            // When
-            Mono<? extends Throwable> result = dalExceptionHandler.apply(clientResponse);
+        // When
+        Mono<? extends Throwable> result = dalExceptionHandler.apply(clientResponse);
 
         // Then
         StepVerifier.create(result)
-        .expectNextMatches(throwable -> throwable instanceof DalResourceInternalErrorException)
-        .verifyComplete();
-        }
+                .expectNextMatches(throwable -> throwable instanceof DalResourceInternalErrorException)
+                .verifyComplete();
+    }
 
-@Test
+    @Test
     void apply_WhenUnknownStatus_ReturnsServiceException() {
-            // Given
-            when(clientResponse.statusCode()).thenReturn(HttpStatus.SERVICE_UNAVAILABLE);
+        // Given
+        when(clientResponse.statusCode()).thenReturn(HttpStatus.SERVICE_UNAVAILABLE);
 
-            // When
-            Mono<? extends Throwable> result = dalExceptionHandler.apply(clientResponse);
+        // When
+        Mono<? extends Throwable> result = dalExceptionHandler.apply(clientResponse);
 
         // Then
         StepVerifier.create(result)
-        .expectNextMatches(throwable -> throwable instanceof DalServiceException)
-        .verifyComplete();
-        }
+                .expectNextMatches(throwable -> throwable instanceof DalServiceException)
+                .verifyComplete();
+    }
 }
 
 
