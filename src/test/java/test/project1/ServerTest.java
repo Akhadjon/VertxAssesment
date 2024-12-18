@@ -77,13 +77,14 @@ public class ServerTest {
     }
 }
 
+
 class RccsSneakyExceptionTest {
 
     @Test
     void constructor_WithErrorCodes_SetsAllFields() {
         // Given
         String message = "Test error";
-        ErrorCode[] errorCodes = {ErrorCode.INTERNAL_ERROR, ErrorCode.BAD_REQUEST};
+        RccsErrorCode[] errorCodes = {RccsErrorCode.INTERNAL_ERROR, RccsErrorCode.BAD_REQUEST};
 
         // When
         RccsSneakyException exception = new RccsSneakyException(message, errorCodes);
@@ -95,12 +96,12 @@ class RccsSneakyExceptionTest {
         assertEquals(2, exception.getErrors().size());
 
         Error firstError = exception.getErrors().get(0);
-        assertEquals("INTERNAL_ERROR", firstError.getCode());
-        assertEquals("Internal server error occurred", firstError.getMessage());
+        assertEquals(500, firstError.code());
+        assertEquals("Internal server error occurred", firstError.message());
 
         Error secondError = exception.getErrors().get(1);
-        assertEquals("BAD_REQUEST", secondError.getCode());
-        assertEquals("Bad request", secondError.getMessage());
+        assertEquals(400, secondError.code());
+        assertEquals("Bad request", secondError.message());
     }
 
     @Test
@@ -121,7 +122,7 @@ class RccsSneakyExceptionTest {
     void constructor_WithEmptyErrorCodes_SetsNullErrors() {
         // Given
         String message = "Test error";
-        ErrorCode[] errorCodes = {};
+        RccsErrorCode[] errorCodes = {};
 
         // When
         RccsSneakyException exception = new RccsSneakyException(message, errorCodes);
