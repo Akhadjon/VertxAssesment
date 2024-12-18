@@ -77,3 +77,86 @@ public class ServerTest {
     }
 }
 
+
+class WaiverBicsDaoTest {
+
+    private static final String VALID_BIC = "TESTBIC1";
+    private static final String STANDARDIZED_BIC = "STANDARDIZEDBIC";
+    private static final Long VALID_WAIVER_ID = 1L;
+
+    @Mock
+    private RccsDalServiceClient rccsDalServiceClient;
+
+    @Mock
+    private EnvironmentService environmentService;
+
+    @InjectMocks
+    private WaiverBicsDao waiverBicsDao;
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        when(environmentService.getStandardSearchBic(VALID_BIC))
+                .thenReturn(STANDARDIZED_BIC);
+    }
+
+    @Test
+    void getWaiverBic_WhenBicExists_ReturnsWaiverBic() throws RccsApiException {
+        // Given
+        WaiverBics mockWaiverBics = WaiverBics.builder()
+                .waiverId(VALID_WAIVER_ID)
+                .bicCode(VALID_BIC)
+                .build();
+
+        when(rccsDalServiceClient.getResource(any(String.class), eq(WaiverBics.class)))
+                .thenReturn(Mono.just(mockWaiverBics));
+
+        // When
+        WaiverBics result = waiverBicsDao.getWaiverBic(VALID_BIC);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(VALID_BIC, result.getBicCode());
+        assertEquals(VALID_WAIVER_ID, result.getWaiverId());
+    }
+
+    @Test
+    void getWaiverBic_WhenBicNotFound_ReturnsNull() throws RccsApiException {
+        // Given
+        when(rccsDalServiceClient.getResource(any(String.class), eq(WaiverBics.class)))
+                .thenReturn(Mono.empty());
+
+        // When
+        WaiverBics result = waiverBicsDao.getWaiverBic(VALID_BIC);
+
+        // Then
+        assertNull(result);
+    }
+
+    @Test
+    void getWaiverBic_WhenError_ReturnsNull() throws RccsApiException {
+        // Given
+        when(rccsDalServiceClient.getResource(any(String.class), eq(WaiverBics.class)))
+                .thenReturn(Mono.error(new RuntimeException("Test error")));
+
+        // When
+        WaiverBics result = waiverBicsDao.getWaiverBic(VALID_BIC);
+
+        // Then
+        assertNull(result);
+    }
+
+    @Test
+    void getWaiverBic_WhenGeneralException_ThrowsRccsApiException() {
+        // Given
+        when(rccsDalServiceClient.getResource(any(String.class), eq(WaiverBics.class)))
+                .thenThrow(new RuntimeException("Unexpected error"));
+
+        // When & Then
+        assertThrows(RccsApiException.class, () ->
+                waiverBicsDao.getWaiverBic(VALID_BIC)
+        );
+    }
+}
+
+
