@@ -77,86 +77,100 @@ public class ServerTest {
     }
 }
 
+    lass DalExceptionHandlerTest {
 
-class ClientLondonDaoTest {
+private DalExceptionHandler dalExceptionHandler;
+private ClientResponse clientResponse;
 
-    private static final String VALID_DEBIT_ACCOUNT = "12345678";
-    private static final Long VALID_CLIENT_ID = 1L;
-    private static final String VALID_ORIGINATOR_ACCOUNT = "87654321";
-    private static final String VALID_CLIENT_NAME = "Test Client";
-
-    @Mock
-    private RccsDalServiceClient rccsDalServiceClient;
-
-    @InjectMocks
-    private ClientLondonDao clientLondonDao;
-
-    @BeforeEach
+@BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this);
-    }
+            dalExceptionHandler = new DalExceptionHandler();
+            clientResponse = mock(ClientResponse.class);
+        }
 
-    @Test
-    void getClientLondonDetails_WhenAccountExists_ReturnsClientLondon() throws RccsApiException {
-        // Given
-        ClientLondon mockClientLondon = ClientLondon.builder()
-                .clientId(VALID_CLIENT_ID)
-                .originatorAccount(VALID_ORIGINATOR_ACCOUNT)
-                .debitAccount(VALID_DEBIT_ACCOUNT)
-                .clientName(VALID_CLIENT_NAME)
-                .build();
+@Test
+    void apply_WhenStatus400_ReturnsBadRequestException() {
+            // Given
+            when(clientResponse.statusCode()).thenReturn(HttpStatus.BAD_REQUEST);
 
-        when(rccsDalServiceClient.getResource(any(String.class), eq(ClientLondon.class)))
-                .thenReturn(Mono.just(mockClientLondon));
-
-        // When
-        ClientLondon result = clientLondonDao.getClientLondonDetails(VALID_DEBIT_ACCOUNT);
+            // When
+            Mono<? extends Throwable> result = dalExceptionHandler.apply(clientResponse);
 
         // Then
-        assertNotNull(result);
-        assertEquals(VALID_CLIENT_ID, result.getClientId());
-        assertEquals(VALID_ORIGINATOR_ACCOUNT, result.getOriginatorAccount());
-        assertEquals(VALID_DEBIT_ACCOUNT, result.getDebitAccount());
-        assertEquals(VALID_CLIENT_NAME, result.getClientName());
-    }
+        StepVerifier.create(result)
+        .expectNextMatches(throwable -> throwable instanceof DalResourceBadRequestException)
+        .verifyComplete();
+        }
 
-    @Test
-    void getClientLondonDetails_WhenAccountNotFound_ReturnsNull() throws RccsApiException {
-        // Given
-        when(rccsDalServiceClient.getResource(any(String.class), eq(ClientLondon.class)))
-                .thenReturn(Mono.empty());
+@Test
+    void apply_WhenStatus401_ReturnsAuthenticationException() {
+            // Given
+            when(clientResponse.statusCode()).thenReturn(HttpStatus.UNAUTHORIZED);
 
-        // When
-        ClientLondon result = clientLondonDao.getClientLondonDetails(VALID_DEBIT_ACCOUNT);
+            // When
+            Mono<? extends Throwable> result = dalExceptionHandler.apply(clientResponse);
 
         // Then
-        assertNull(result);
-    }
+        StepVerifier.create(result)
+        .expectNextMatches(throwable -> throwable instanceof DalResourceAuthenticationException)
+        .verifyComplete();
+        }
 
-    @Test
-    void getClientLondonDetails_WhenError_ReturnsNull() throws RccsApiException {
-        // Given
-        when(rccsDalServiceClient.getResource(any(String.class), eq(ClientLondon.class)))
-                .thenReturn(Mono.error(new RuntimeException("Test error")));
+@Test
+    void apply_WhenStatus403_ReturnsAuthenticationException() {
+            // Given
+            when(clientResponse.statusCode()).thenReturn(HttpStatus.FORBIDDEN);
 
-        // When
-        ClientLondon result = clientLondonDao.getClientLondonDetails(VALID_DEBIT_ACCOUNT);
+            // When
+            Mono<? extends Throwable> result = dalExceptionHandler.apply(clientResponse);
 
         // Then
-        assertNull(result);
-    }
+        StepVerifier.create(result)
+        .expectNextMatches(throwable -> throwable instanceof DalResourceAuthenticationException)
+        .verifyComplete();
+        }
 
-    @Test
-    void getClientLondonDetails_WhenGeneralException_ThrowsRccsApiException() {
-        // Given
-        when(rccsDalServiceClient.getResource(any(String.class), eq(ClientLondon.class)))
-                .thenThrow(new RuntimeException("Unexpected error"));
+@Test
+    void apply_WhenStatus404_ReturnsNotFoundException() {
+            // Given
+            when(clientResponse.statusCode()).thenReturn(HttpStatus.NOT_FOUND);
 
-        // When & Then
-        assertThrows(RccsApiException.class, () ->
-                clientLondonDao.getClientLondonDetails(VALID_DEBIT_ACCOUNT)
-        );
-    }
+            // When
+            Mono<? extends Throwable> result = dalExceptionHandler.apply(clientResponse);
+
+        // Then
+        StepVerifier.create(result)
+        .expectNextMatches(throwable -> throwable instanceof DalResourceNotFoundException)
+        .verifyComplete();
+        }
+
+@Test
+    void apply_WhenStatus500_ReturnsInternalErrorException() {
+            // Given
+            when(clientResponse.statusCode()).thenReturn(HttpStatus.INTERNAL_SERVER_ERROR);
+
+            // When
+            Mono<? extends Throwable> result = dalExceptionHandler.apply(clientResponse);
+
+        // Then
+        StepVerifier.create(result)
+        .expectNextMatches(throwable -> throwable instanceof DalResourceInternalErrorException)
+        .verifyComplete();
+        }
+
+@Test
+    void apply_WhenUnknownStatus_ReturnsServiceException() {
+            // Given
+            when(clientResponse.statusCode()).thenReturn(HttpStatus.SERVICE_UNAVAILABLE);
+
+            // When
+            Mono<? extends Throwable> result = dalExceptionHandler.apply(clientResponse);
+
+        // Then
+        StepVerifier.create(result)
+        .expectNextMatches(throwable -> throwable instanceof DalServiceException)
+        .verifyComplete();
+        }
 }
 
 
