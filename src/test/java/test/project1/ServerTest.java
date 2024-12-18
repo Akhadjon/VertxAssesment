@@ -77,32 +77,59 @@ public class ServerTest {
     }
 }
 
-class ILBadRequestExceptionTest {
+class RccsSneakyExceptionTest {
 
     @Test
-    void constructor_SetsAllFields() {
+    void constructor_WithErrorCodes_SetsAllFields() {
         // Given
-        ILAcknowledgement ilAck = ILAcknowledgement.builder()
-                .status("ERROR")
-                .message("Bad Request")
-                .build();
-
-        IsolationLayerResponse response = IsolationLayerResponse.builder()
-                .ilAck(ilAck)
-                .build();
-
-        WebClientResponseException ex = mock(WebClientResponseException.class);
-        when(ex.getStatusCode()).thenReturn(HttpStatus.BAD_REQUEST);
+        String message = "Test error";
+        ErrorCode[] errorCodes = {ErrorCode.INTERNAL_ERROR, ErrorCode.BAD_REQUEST};
 
         // When
-        ILBadRequestException exception = new ILBadRequestException(response, ex);
+        RccsSneakyException exception = new RccsSneakyException(message, errorCodes);
 
         // Then
-        assertNotNull(exception.getCause());
-        assertEquals(response, exception.getIsolationLayerResponse());
-        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatusCode());
-        assertEquals("ERROR", exception.getIsolationLayerResponse().getIlAck().getStatus());
-        assertEquals("Bad Request", exception.getIsolationLayerResponse().getIlAck().getMessage());
+        assertEquals(message, exception.getMessage());
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, exception.getStatus());
+        assertNotNull(exception.getErrors());
+        assertEquals(2, exception.getErrors().size());
+
+        Error firstError = exception.getErrors().get(0);
+        assertEquals("INTERNAL_ERROR", firstError.getCode());
+        assertEquals("Internal server error occurred", firstError.getMessage());
+
+        Error secondError = exception.getErrors().get(1);
+        assertEquals("BAD_REQUEST", secondError.getCode());
+        assertEquals("Bad request", secondError.getMessage());
+    }
+
+    @Test
+    void constructor_WithNullErrorCodes_SetsNullErrors() {
+        // Given
+        String message = "Test error";
+
+        // When
+        RccsSneakyException exception = new RccsSneakyException(message);
+
+        // Then
+        assertEquals(message, exception.getMessage());
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, exception.getStatus());
+        assertNull(exception.getErrors());
+    }
+
+    @Test
+    void constructor_WithEmptyErrorCodes_SetsNullErrors() {
+        // Given
+        String message = "Test error";
+        ErrorCode[] errorCodes = {};
+
+        // When
+        RccsSneakyException exception = new RccsSneakyException(message, errorCodes);
+
+        // Then
+        assertEquals(message, exception.getMessage());
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, exception.getStatus());
+        assertNull(exception.getErrors());
     }
 }
 
