@@ -77,17 +77,6 @@ public class ServerTest {
     }
 }
 
-
-import org.junit.jupiter.api.BeforeEach;
-        import org.junit.jupiter.api.Test;
-        import org.springframework.http.HttpStatus;
-        import org.springframework.web.reactive.function.client.ClientResponse;
-        import reactor.core.publisher.Mono;
-        import reactor.test.StepVerifier;
-
-        import static org.mockito.Mockito.mock;
-        import static org.mockito.Mockito.when;
-
 class DalExceptionHandlerTest {
 
     private DalExceptionHandler dalExceptionHandler;
@@ -109,8 +98,8 @@ class DalExceptionHandlerTest {
 
         // Then
         StepVerifier.create(result)
-                .expectNextMatches(throwable -> throwable instanceof DalResourceBadRequestException)
-                .verifyComplete();
+                .expectError(DalResourceBadRequestException.class)
+                .verify();
     }
 
     @Test
@@ -123,8 +112,8 @@ class DalExceptionHandlerTest {
 
         // Then
         StepVerifier.create(result)
-                .expectNextMatches(throwable -> throwable instanceof DalResourceAuthenticationException)
-                .verifyComplete();
+                .expectError(DalResourceAuthenticationException.class)
+                .verify();
     }
 
     @Test
@@ -137,8 +126,8 @@ class DalExceptionHandlerTest {
 
         // Then
         StepVerifier.create(result)
-                .expectNextMatches(throwable -> throwable instanceof DalResourceAuthenticationException)
-                .verifyComplete();
+                .expectError(DalResourceAuthenticationException.class)
+                .verify();
     }
 
     @Test
@@ -151,8 +140,8 @@ class DalExceptionHandlerTest {
 
         // Then
         StepVerifier.create(result)
-                .expectNextMatches(throwable -> throwable instanceof DalResourceNotFoundException)
-                .verifyComplete();
+                .expectError(DalResourceNotFoundException.class)
+                .verify();
     }
 
     @Test
@@ -165,8 +154,8 @@ class DalExceptionHandlerTest {
 
         // Then
         StepVerifier.create(result)
-                .expectNextMatches(throwable -> throwable instanceof DalResourceInternalErrorException)
-                .verifyComplete();
+                .expectError(DalResourceInternalErrorException.class)
+                .verify();
     }
 
     @Test
@@ -179,8 +168,8 @@ class DalExceptionHandlerTest {
 
         // Then
         StepVerifier.create(result)
-                .expectNextMatches(throwable -> throwable instanceof DalServiceException)
-                .verifyComplete();
+                .expectError(DalServiceException.class)
+                .verify();
     }
 }
 
