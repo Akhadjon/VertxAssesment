@@ -77,95 +77,32 @@ public class ServerTest {
     }
 }
 
-class ILExceptionHandlerTest {
-
-    private ILExceptionHandler ilExceptionHandler;
-    private ClientResponse clientResponse;
-
-    @BeforeEach
-    void setUp() {
-        ilExceptionHandler = new ILExceptionHandler();
-        clientResponse = mock(ClientResponse.class);
-    }
+class ILBadRequestExceptionTest {
 
     @Test
-    void apply_WhenStatus401_ReturnsAuthError() {
+    void constructor_SetsAllFields() {
         // Given
-        when(clientResponse.statusCode()).thenReturn(HttpStatus.UNAUTHORIZED);
+        ILAcknowledgement ilAck = ILAcknowledgement.builder()
+                .status("ERROR")
+                .message("Bad Request")
+                .build();
+
+        IsolationLayerResponse response = IsolationLayerResponse.builder()
+                .ilAck(ilAck)
+                .build();
+
+        WebClientResponseException ex = mock(WebClientResponseException.class);
+        when(ex.getStatusCode()).thenReturn(HttpStatus.BAD_REQUEST);
 
         // When
-        Mono<? extends Throwable> result = ilExceptionHandler.apply(clientResponse);
+        ILBadRequestException exception = new ILBadRequestException(response, ex);
 
         // Then
-        StepVerifier.create(result)
-                .expectErrorMatches(throwable ->
-                        throwable instanceof Exception &&
-                                throwable.getMessage().equals("Auth error"))
-                .verify();
-    }
-
-    @Test
-    void apply_WhenStatus403_ReturnsAuthError() {
-        // Given
-        when(clientResponse.statusCode()).thenReturn(HttpStatus.FORBIDDEN);
-
-        // When
-        Mono<? extends Throwable> result = ilExceptionHandler.apply(clientResponse);
-
-        // Then
-        StepVerifier.create(result)
-                .expectErrorMatches(throwable ->
-                        throwable instanceof Exception &&
-                                throwable.getMessage().equals("Auth error"))
-                .verify();
-    }
-
-    @Test
-    void apply_WhenStatus404_ReturnsNotFoundError() {
-        // Given
-        when(clientResponse.statusCode()).thenReturn(HttpStatus.NOT_FOUND);
-
-        // When
-        Mono<? extends Throwable> result = ilExceptionHandler.apply(clientResponse);
-
-        // Then
-        StepVerifier.create(result)
-                .expectErrorMatches(throwable ->
-                        throwable instanceof Exception &&
-                                throwable.getMessage().equals("Maybe not an error?"))
-                .verify();
-    }
-
-    @Test
-    void apply_WhenStatus500_ReturnsServerError() {
-        // Given
-        when(clientResponse.statusCode()).thenReturn(HttpStatus.INTERNAL_SERVER_ERROR);
-
-        // When
-        Mono<? extends Throwable> result = ilExceptionHandler.apply(clientResponse);
-
-        // Then
-        StepVerifier.create(result)
-                .expectErrorMatches(throwable ->
-                        throwable instanceof Exception &&
-                                throwable.getMessage().equals("Server error"))
-                .verify();
-    }
-
-    @Test
-    void apply_WhenUnknownStatus_ReturnsDefaultError() {
-        // Given
-        when(clientResponse.statusCode()).thenReturn(HttpStatus.BAD_GATEWAY);
-
-        // When
-        Mono<? extends Throwable> result = ilExceptionHandler.apply(clientResponse);
-
-        // Then
-        StepVerifier.create(result)
-                .expectErrorMatches(throwable ->
-                        throwable instanceof Exception &&
-                                throwable.getMessage().equals("Something went wrong"))
-                .verify();
+        assertNotNull(exception.getCause());
+        assertEquals(response, exception.getIsolationLayerResponse());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatusCode());
+        assertEquals("ERROR", exception.getIsolationLayerResponse().getIlAck().getStatus());
+        assertEquals("Bad Request", exception.getIsolationLayerResponse().getIlAck().getMessage());
     }
 }
 
