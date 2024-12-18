@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.ExtendWith;
 import test.project1.controller.WordAnalyzerVerticle;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -77,27 +79,93 @@ public class ServerTest {
     }
 }
 
-class WebClientExceptionHandlerTest {
 
-    private final WebClientExceptionHandler exceptionHandler = new WebClientExceptionHandler();
+import org.junit.jupiter.api.Test;
+        import org.springframework.http.HttpStatus;
+        import org.springframework.http.ResponseEntity;
+
+        import java.util.Collections;
+        import java.util.List;
+
+        import static org.junit.jupiter.api.Assertions.*;
+        import static org.mockito.Mockito.mock;
+        import static org.mockito.Mockito.when;
+
+class GlobalExceptionHandlerTest {
+
+    private final GlobalExceptionHandler exceptionHandler = new GlobalExceptionHandler();
 
     @Test
-    void handleException_WithPbrmException_ReturnsCorrectResponse() {
+    void handleRccsApiException_ReturnsCorrectResponse() {
         // Given
-        String errorMessage = "Test error message";
-        PbrmException exception = new PbrmException(errorMessage);
+        RccsApiException exception = mock(RccsApiException.class);
+        Error error = Error.builder()
+                .code(400)
+                .message("Test error")
+                .build();
+        List<Error> errors = Collections.singletonList(error);
+
+        when(exception.getStatus()).thenReturn(HttpStatus.BAD_REQUEST);
+        when(exception.getErrors()).thenReturn(errors);
 
         // When
-        ResponseEntity<WebClientErrorMessage> response = exceptionHandler.handleException(exception);
+        ResponseEntity<ApiResponse<List<Error>>> response = exceptionHandler.handleRccsApiException(exception);
 
         // Then
-        assertNotNull(response);
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        ApiResponse<List<Error>> body = response.getBody();
+        assertNotNull(body);
+        assertFalse(body.isSuccess());
+        assertEquals("Unable to fulfill the request", body.getMessage());
+        assertEquals(errors, body.getErrors());
+    }
 
-        WebClientErrorMessage errorBody = response.getBody();
-        assertNotNull(errorBody);
-        assertEquals(errorMessage, errorBody.getMessage());
-        assertEquals(ErrorConstants.WEB_CLIENT_ERROR, errorBody.getDetails());
+    @Test
+    void handleRccsSneakyException_ReturnsCorrectResponse() {
+        // Given
+        RccsSneakyException exception = mock(RccsSneakyException.class);
+        Error error = Error.builder()
+                .code(500)
+                .message("Internal error")
+                .build();
+        List<Error> errors = Collections.singletonList(error);
+
+        when(exception.getErrors()).thenReturn(errors);
+
+        // When
+        ResponseEntity<ApiResponse<List<Error>>> response = exceptionHandler.handleRccsSneakyException(exception);
+
+        // Then
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        ApiResponse<List<Error>> body = response.getBody();
+        assertNotNull(body);
+        assertFalse(body.isSuccess());
+        assertEquals("Unable to fulfill the request", body.getMessage());
+        assertEquals(errors, body.getErrors());
+    }
+
+    @Test
+    void handleBadRequestException_ReturnsCorrectResponse() {
+        // Given
+        ILBadRequestException exception = mock(ILBadRequestException.class);
+        ILAcknowledgement ilAck = ILAcknowledgement.builder()
+                .status("ERROR")
+                .message("Bad request")
+                .build();
+        IsolationLayerResponse ilResponse = IsolationLayerResponse.builder()
+                .ilAck(ilAck)
+                .build();
+
+        when(exception.getHttpStatusCode()).thenReturn(HttpStatus.BAD_REQUEST);
+        when(exception.getIsolationLayerResponse()).thenReturn(ilResponse);
+
+        // When
+        ResponseEntity<IsolationLayerResponse> response = exceptionHandler.handleBadRequestException(exception);
+
+        // Then
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals(ilResponse, response.getBody());
     }
 }
+
 
