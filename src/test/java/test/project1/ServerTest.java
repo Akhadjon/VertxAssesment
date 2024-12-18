@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.ExtendWith;
 import test.project1.controller.WordAnalyzerVerticle;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -77,99 +79,91 @@ public class ServerTest {
     }
 }
 
-class DalExceptionHandlerTest {
+import org.junit.jupiter.api.BeforeEach;
+        import org.junit.jupiter.api.Test;
+        import org.springframework.http.HttpStatus;
+        import org.springframework.http.ResponseEntity;
 
-    private DalExceptionHandler dalExceptionHandler;
-    private ClientResponse clientResponse;
+        import java.util.Collections;
+        import java.util.List;
+
+        import static org.junit.jupiter.api.Assertions.assertEquals;
+        import static org.junit.jupiter.api.Assertions.assertFalse;
+        import static org.mockito.Mockito.mock;
+        import static org.mockito.Mockito.when;
+
+class GlobalExceptionHandlerTest {
+
+    private GlobalExceptionHandler globalExceptionHandler;
 
     @BeforeEach
     void setUp() {
-        dalExceptionHandler = new DalExceptionHandler();
-        clientResponse = mock(ClientResponse.class);
+        globalExceptionHandler = new GlobalExceptionHandler();
     }
 
     @Test
-    void apply_WhenStatus400_ReturnsBadRequestException() {
+    void handleRccsApiException_ReturnsCorrectResponse() {
         // Given
-        when(clientResponse.statusCode()).thenReturn(HttpStatus.BAD_REQUEST);
+        RccsApiException exception = mock(RccsApiException.class);
+        Error error = Error.builder()
+                .code("ERR001")
+                .message("Test error")
+                .build();
+        List<Error> errors = Collections.singletonList(error);
+
+        when(exception.getStatus()).thenReturn(HttpStatus.BAD_REQUEST);
+        when(exception.getErrors()).thenReturn(errors);
 
         // When
-        Mono<? extends Throwable> result = dalExceptionHandler.apply(clientResponse);
+        ResponseEntity<ApiResponse<List<Error>>> response = globalExceptionHandler.handleRccsApiException(exception);
 
         // Then
-        StepVerifier.create(result)
-                .expectError(DalResourceBadRequestException.class)
-                .verify();
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertFalse(response.getBody().isSuccess());
+        assertEquals("Unable to fulfill the request", response.getBody().getMessage());
+        assertEquals(errors, response.getBody().getErrors());
     }
 
     @Test
-    void apply_WhenStatus401_ReturnsAuthenticationException() {
+    void handleRccsSneakyException_ReturnsCorrectResponse() {
         // Given
-        when(clientResponse.statusCode()).thenReturn(HttpStatus.UNAUTHORIZED);
+        RccsSneakyException exception = mock(RccsSneakyException.class);
+        Error error = Error.builder()
+                .code("ERR002")
+                .message("Sneaky error")
+                .build();
+        List<Error> errors = Collections.singletonList(error);
+
+        when(exception.getErrors()).thenReturn(errors);
 
         // When
-        Mono<? extends Throwable> result = dalExceptionHandler.apply(clientResponse);
+        ResponseEntity<ApiResponse<List<Error>>> response = globalExceptionHandler.handleRccsSneakyException(exception);
 
         // Then
-        StepVerifier.create(result)
-                .expectError(DalResourceAuthenticationException.class)
-                .verify();
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        assertFalse(response.getBody().isSuccess());
+        assertEquals("Unable to fulfill the request", response.getBody().getMessage());
+        assertEquals(errors, response.getBody().getErrors());
     }
 
     @Test
-    void apply_WhenStatus403_ReturnsAuthenticationException() {
+    void handleBadRequestException_ReturnsCorrectResponse() {
         // Given
-        when(clientResponse.statusCode()).thenReturn(HttpStatus.FORBIDDEN);
+        ILBadRequestException exception = mock(ILBadRequestException.class);
+        IsolationLayerResponse ilResponse = IsolationLayerResponse.builder()
+                .status("ERROR")
+                .message("Bad request")
+                .build();
+
+        when(exception.getHttpStatusCode()).thenReturn(HttpStatus.BAD_REQUEST);
+        when(exception.getIsolationLayerResponse()).thenReturn(ilResponse);
 
         // When
-        Mono<? extends Throwable> result = dalExceptionHandler.apply(clientResponse);
+        ResponseEntity<IsolationLayerResponse> response = globalExceptionHandler.handleBadRequestException(exception);
 
         // Then
-        StepVerifier.create(result)
-                .expectError(DalResourceAuthenticationException.class)
-                .verify();
-    }
-
-    @Test
-    void apply_WhenStatus404_ReturnsNotFoundException() {
-        // Given
-        when(clientResponse.statusCode()).thenReturn(HttpStatus.NOT_FOUND);
-
-        // When
-        Mono<? extends Throwable> result = dalExceptionHandler.apply(clientResponse);
-
-        // Then
-        StepVerifier.create(result)
-                .expectError(DalResourceNotFoundException.class)
-                .verify();
-    }
-
-    @Test
-    void apply_WhenStatus500_ReturnsInternalErrorException() {
-        // Given
-        when(clientResponse.statusCode()).thenReturn(HttpStatus.INTERNAL_SERVER_ERROR);
-
-        // When
-        Mono<? extends Throwable> result = dalExceptionHandler.apply(clientResponse);
-
-        // Then
-        StepVerifier.create(result)
-                .expectError(DalResourceInternalErrorException.class)
-                .verify();
-    }
-
-    @Test
-    void apply_WhenUnknownStatus_ReturnsServiceException() {
-        // Given
-        when(clientResponse.statusCode()).thenReturn(HttpStatus.SERVICE_UNAVAILABLE);
-
-        // When
-        Mono<? extends Throwable> result = dalExceptionHandler.apply(clientResponse);
-
-        // Then
-        StepVerifier.create(result)
-                .expectError(DalServiceException.class)
-                .verify();
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals(ilResponse, response.getBody());
     }
 }
 
